@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 560" role="img" aria-labelledby="t d" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">Advance Search architecture</title>
+  <desc id="d">Django on App Service queries Azure AI Search and Cosmos DB. AI Search uses an Azure OpenAI embedding model in East US 2. Functions and Storage handle background work. Key Vault, Monitor, Backup and Defender support the stack.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#1F4E8C"/>
+    </marker>
+  </defs>
+  <rect width="980" height="560" fill="#FFFFFF"/>
+
+  <rect x="20" y="40" width="700" height="500" rx="10" fill="#F4F8FC" stroke="#9DB8D6" stroke-dasharray="6 5"/>
+  <text x="36" y="66" font-size="15" font-weight="600" fill="#1F4E8C">Resource group: Central India</text>
+  <rect x="750" y="40" width="210" height="190" rx="10" fill="#F1FAF8" stroke="#8CC7BE" stroke-dasharray="6 5"/>
+  <text x="766" y="66" font-size="15" font-weight="600" fill="#0E6F63">East US 2 (same group)</text>
+
+  <g font-size="15" fill="#14202E" stroke="#1F4E8C" stroke-width="1.5">
+    <rect x="60" y="120" width="170" height="64" rx="8" fill="#FFFFFF"/>
+    <rect x="290" y="120" width="170" height="64" rx="8" fill="#FFFFFF"/>
+    <rect x="520" y="120" width="170" height="64" rx="8" fill="#FFFFFF"/>
+    <rect x="780" y="120" width="150" height="64" rx="8" fill="#FFFFFF" stroke="#0E8A7D"/>
+    <rect x="60" y="270" width="170" height="64" rx="8" fill="#FFFFFF"/>
+    <rect x="290" y="270" width="170" height="64" rx="8" fill="#FFFFFF"/>
+    <rect x="520" y="270" width="170" height="64" rx="8" fill="#FFFFFF"/>
+    <rect x="60" y="420" width="170" height="64" rx="8" fill="#FFFFFF"/>
+    <rect x="290" y="420" width="170" height="64" rx="8" fill="#FFFFFF"/>
+    <rect x="520" y="420" width="170" height="64" rx="8" fill="#FFFFFF"/>
+  </g>
+
+  <g font-size="15" font-weight="600" fill="#14202E" text-anchor="middle">
+    <text x="145" y="148">App Service</text>
+    <text x="375" y="148">Cosmos DB</text>
+    <text x="605" y="148">Azure AI Search</text>
+    <text x="855" y="148">Azure OpenAI</text>
+    <text x="145" y="298">Functions</text>
+    <text x="375" y="298">Storage Account</text>
+    <text x="605" y="298">Key Vault</text>
+    <text x="145" y="448">Azure Monitor</text>
+    <text x="375" y="448">Recovery Vault</text>
+    <text x="605" y="448">Defender for Cloud</text>
+  </g>
+  <g font-size="12.5" fill="#4A5B6D" text-anchor="middle">
+    <text x="145" y="168">Django, Python 3.12, P1v2</text>
+    <text x="375" y="168">NoSQL, 100 RU/s</text>
+    <text x="605" y="168">Standard S1, vector search</text>
+    <text x="855" y="168">text-embedding-3-large</text>
+    <text x="145" y="318">Consumption plan</text>
+    <text x="375" y="318">documents, backupshare</text>
+    <text x="605" y="318">secrets for every service</text>
+    <text x="145" y="468">Log Analytics + App Insights</text>
+    <text x="375" y="468">daily file share backup</text>
+    <text x="605" y="468">subscription-scope plans</text>
+  </g>
+
+  <g stroke="#1F4E8C" stroke-width="1.8" fill="none" marker-end="url(#a)">
+    <path d="M230 152H290"/>
+    <path d="M145 120V92H605V120"/>
+    <path d="M690 152H780"/>
+    <path d="M230 302H290"/>
+    <path d="M460 284L545 188"/>
+  </g>
+  <g font-size="12.5" fill="#4A5B6D">
+    <text x="320" y="86" text-anchor="middle">queries, ranked results</text>
+    <text x="735" y="144" text-anchor="middle">embed</text>
+    <text x="470" y="252" text-anchor="end">index documents</text>
+  </g>
+
+  <g stroke="#0E8A7D" stroke-width="1.6" fill="none" stroke-dasharray="5 4">
+    <path d="M605 270V222H100V190" marker-end="url(#a)"/>
+    <path d="M100 222V264" marker-end="url(#a)"/>
+  </g>
+  <text x="330" y="212" font-size="12.5" fill="#0E6F63" text-anchor="middle">Key Vault references (no plaintext secrets)</text>
+</svg>

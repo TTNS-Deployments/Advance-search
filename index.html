@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Advance Search | Azure deployment</title>
+<meta name="description" content="ARM templates and scripts that deploy a small-scale semantic search stack on Azure with one command.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F5F7FA;
+    --surface: #FFFFFF;
+    --ink: #14202E;
+    --muted: #4A5B6D;
+    --rule: #D5DDE6;
+    --navy: #0F2A47;
+    --navy-ink: #FFFFFF;
+    --navy-muted: #BFD4EA;
+    --azure: #1F5FBF;
+    --teal: #0B7A6E;
+    --code-bg: #0A1E34;
+    --code-ink: #E6EEF7;
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --sans: "Public Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0B1624;
+      --surface: #11233A;
+      --ink: #E6EEF7;
+      --muted: #9DB3CB;
+      --rule: #23405F;
+      --navy: #08121F;
+      --azure: #6FA8F0;
+      --teal: #4FC5B5;
+      --code-bg: #060F1B;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.6 var(--sans); }
+  a { color: var(--azure); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--azure); outline-offset: 2px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+  header.hero { background: var(--navy); color: var(--navy-ink); padding: 72px 0 64px; }
+  header.hero h1 { font: 700 clamp(2.6rem, 6vw, 4.2rem)/1.05 var(--serif); margin: 0 0 20px; letter-spacing: -0.01em; }
+  header.hero p.lead { font-size: 1.2rem; color: var(--navy-muted); max-width: 40rem; margin: 0 0 36px; }
+  .cmd { background: var(--code-bg); border: 1px solid #23405F; border-radius: 10px; max-width: 46rem; display: flex; align-items: stretch; }
+  .cmd pre { margin: 0; padding: 18px 20px; overflow-x: auto; flex: 1; font: 400 0.95rem/1.7 var(--mono); color: var(--code-ink); }
+  .cmd .prompt { color: #7FB0E3; user-select: none; }
+  .cmd button { border: 0; border-left: 1px solid #23405F; background: transparent; color: var(--code-ink); font: 500 0.9rem var(--sans); padding: 0 22px; cursor: pointer; border-radius: 0 10px 10px 0; min-width: 84px; }
+  .cmd button:hover { background: #12304F; }
+  header.hero .links { margin-top: 28px; display: flex; gap: 24px; flex-wrap: wrap; font-size: 1rem; }
+  header.hero .links a { color: var(--navy-ink); }
+
+  section { padding: 64px 0 8px; }
+  h2 { font: 700 clamp(1.7rem, 3.5vw, 2.2rem)/1.2 var(--serif); margin: 0 0 12px; }
+  section > .wrap > p.intro { color: var(--muted); max-width: 42rem; margin: 0 0 28px; }
+
+  .filter { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter label { font-weight: 500; }
+  .filter input { font: inherit; padding: 9px 12px; min-width: min(100%, 20rem); border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); color: var(--ink); }
+  .filter .count { color: var(--muted); font-size: 0.95rem; }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 0.97rem; }
+  th, td { text-align: left; padding: 13px 16px; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 600; background: color-mix(in srgb, var(--surface) 70%, var(--paper)); }
+  tr:last-child td { border-bottom: 0; }
+  td.n { width: 3rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  td code, .note code, ol code { font: 0.88em var(--mono); background: color-mix(in srgb, var(--azure) 10%, transparent); padding: 1px 6px; border-radius: 4px; }
+  td:last-child { white-space: nowrap; }
+  .good code { font: 0.85em var(--mono); background: color-mix(in srgb, var(--azure) 10%, transparent); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+  .empty { padding: 24px 16px; color: var(--muted); display: none; }
+
+  .arch { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px; }
+  .arch img { display: block; width: 100%; height: auto; background: #fff; border-radius: 6px; }
+
+  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; max-width: 46rem; }
+  ol.steps li { counter-increment: s; position: relative; padding: 0 0 26px 3.2rem; border-left: 2px solid var(--rule); margin-left: 1rem; }
+  ol.steps li:last-child { border-left-color: transparent; padding-bottom: 8px; }
+  ol.steps li::before { content: counter(s); position: absolute; left: -1.05rem; top: -2px; width: 2rem; height: 2rem; border-radius: 50%; background: var(--azure); color: #fff; font: 600 0.95rem/2rem var(--sans); text-align: center; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) ol.steps li::before { color: #08121F; } }
+  ol.steps strong { display: block; margin-bottom: 4px; }
+  ol.steps pre { margin: 10px 0 0; padding: 12px 14px; background: var(--code-bg); color: var(--code-ink); border-radius: 8px; overflow-x: auto; font: 0.9rem/1.6 var(--mono); }
+
+  .good { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px 40px; }
+  .good h3 { font: 600 1.1rem var(--sans); margin: 0 0 6px; }
+  .good p { margin: 0; color: var(--muted); }
+
+  footer { margin-top: 72px; border-top: 1px solid var(--rule); padding: 28px 0 48px; color: var(--muted); font-size: 0.95rem; }
+  footer .wrap { display: flex; gap: 12px 28px; flex-wrap: wrap; justify-content: space-between; }
+  footer nav { display: flex; gap: 20px; flex-wrap: wrap; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Advance Search</h1>
+    <p class="lead">Azure infrastructure for semantic document search: a Django app, Cosmos DB, AI Search and embeddings, deployed from one script.</p>
+    <div class="cmd">
+      <pre id="cmd-text"><span class="prompt">$ </span>git clone https://github.com/TTNS-Deployments/Advance_Search.git
+<span class="prompt">$ </span>cd Advance_Search &amp;&amp; ./deploy.sh</pre>
+      <button type="button" id="copy-btn" aria-label="Copy the deploy commands">Copy</button>
+    </div>
+    <div class="links">
+      <a href="https://github.com/TTNS-Deployments/Advance_Search">View on GitHub</a>
+      <a href="#resources">See what gets deployed</a>
+      <a href="#steps">Read the steps</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="resources">
+    <div class="wrap">
+      <h2>What gets deployed</h2>
+      <p class="intro">Ten resources, in the order <code>deploy.sh</code> creates them. Each has its own template, so you can redeploy any one on its own.</p>
+
+      <div class="filter">
+        <label for="q">Filter resources</label>
+        <input id="q" type="search" placeholder="Try &quot;search&quot; or &quot;backup&quot;" autocomplete="off">
+        <span class="count" id="count" aria-live="polite"></span>
+      </div>
+
+      <div class="table-scroll">
+        <table id="tbl">
+          <thead><tr><th scope="col">#</th><th scope="col">Resource</th><th scope="col">What it does</th><th scope="col">Configuration</th><th scope="col">Template</th></tr></thead>
+          <tbody>
+            <tr><td class="n">1</td><td>Key Vault</td><td>Holds every secret the stack generates</td><td>Standard tier, soft-delete on, purge protection off</td><td><a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/templates/01-keyvault.json"><code>01-keyvault.json</code></a></td></tr>
+            <tr><td class="n">2</td><td>Storage Account</td><td>Document store and backup target</td><td>StorageV2, LRS, Hot; <code>documents</code> container, <code>backupshare</code> file share</td><td><a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/templates/02-storage.json"><code>02-storage.json</code></a></td></tr>
+            <tr><td class="n">3</td><td>Log Analytics and Application Insights</td><td>Logs and application telemetry</td><td>Workspace-based; 30-day and 90-day retention</td><td><a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/templates/03-monitor.json"><code>03-monitor.json</code></a></td></tr>
+            <tr><td class="n">4</td><td>App Service</td><td>Hosts the Django application</td><td>P1v2 Linux plan, Python 3.12, system-assigned identity</td><td><a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/templates/04-appservice.json"><code>04-appservice.json</code></a></td></tr>
+            <tr><td class="n">5</td><td>Cosmos DB</td><td>Structured application data</td><td>NoSQL API, 100 RU/s, single region, periodic backup</td><td><a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/templates/05-cosmosdb.json"><code>05-cosmosdb.json</code></a></td></tr>
+            <tr><td class="n">6</td><td>Azure AI Search</td><td>Indexing and ranked retrieval with similarity scores</td><td>Standard S1, 1 replica, 1 partition (shown as "Foundry IQ" on cost sheets)</td><td><a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/templates/06-search.json"><code>06-search.json</code></a></td></tr>
+            <tr><td class="n">7</td><td>Azure Functions</td><td>Background and async processing</td><td>Consumption plan, Linux and Python, shares the Storage Account</td><td><a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/templates/07-functions.json"><code>07-functions.json</code></a></td></tr>
+            <tr><td class="n">8</td><td>Azure OpenAI embeddings</td><td>Vectorizes documents and queries</td><td><code>text-embedding-3-large</code> in East US 2, same resource group</td><td><a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/templates/09-embedding.json"><code>09-embedding.json</code></a></td></tr>
+            <tr><td class="n">9</td><td>Recovery Services Vault</td><td>Backs up the <code>backupshare</code> file share</td><td>Daily backup policy</td><td><a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/templates/08-backup.json"><code>08-backup.json</code></a></td></tr>
+            <tr><td class="n">10</td><td>Defender for Cloud</td><td>Subscription-wide protection plans</td><td>Asks for confirmation first, because it affects the whole subscription</td><td><a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/subscription/09-defender.json"><code>09-defender.json</code></a></td></tr>
+          </tbody>
+        </table>
+        <p class="empty" id="empty">No resources match that filter. Clear the box to see all ten.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <div class="wrap">
+      <h2>How it fits together</h2>
+      <p class="intro">Django on App Service queries Azure AI Search, which uses an Azure OpenAI embedding model to turn text into vectors. Results come back ranked with similarity scores. There is no chat model and no generated answers.</p>
+      <div class="arch"><img src="imgs/architecture.svg" alt="Architecture diagram: App Service queries Azure AI Search and Cosmos DB; AI Search calls an Azure OpenAI embedding model in East US 2; Functions and Storage handle background work; Key Vault supplies secrets; Monitor, Backup and Defender support the stack."></div>
+    </div>
+  </section>
+
+  <section id="steps">
+    <div class="wrap">
+      <h2>Deploy it</h2>
+      <p class="intro">You need an Azure subscription with Contributor access, the Azure CLI, <code>jq</code>, and Bash (use WSL or Git Bash on Windows).</p>
+      <ol class="steps">
+        <li><strong>Clone the repository</strong>
+<pre>git clone https://github.com/TTNS-Deployments/Advance_Search.git
+cd Advance_Search</pre></li>
+        <li><strong>Sign in and pick the subscription</strong>
+<pre>az login
+az account set --subscription "&lt;subscription-id-or-name&gt;"</pre></li>
+        <li><strong>Check the defaults at the top of <code>deploy.sh</code></strong>
+Resource group <code>rg-advsearch-dev</code>, region <code>centralindia</code>, embeddings in <code>eastus2</code>, prefix <code>advsearch</code>, environment <code>dev</code>. Change them if you need different names or regions.</li>
+        <li><strong>Run the script</strong>
+<pre>chmod +x deploy.sh
+./deploy.sh</pre>
+A full run takes about 10 to 20 minutes.</li>
+        <li><strong>Answer the Defender prompt</strong>
+Resources 1 to 9 deploy on their own. Step 10 asks before it changes security settings for the whole subscription; answer <code>y</code> to enable it or <code>n</code> to skip.</li>
+        <li><strong>Deploy your app and connect the index</strong>
+Publish the Django code to the App Service, then point the AI Search vectorizer at the embedding deployment. The summary at the end of the run lists every name and the Key Vault secrets.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="good-to-know">
+    <div class="wrap">
+      <h2>Good to know</h2>
+      <div class="good">
+        <div><h3>Cost</h3><p>The P1v2 App Service plan and the S1 AI Search service make up most of the bill, and both charge continuously whether or not anyone uses them.</p></div>
+        <div><h3>Regions</h3><p>Everything runs in Central India except the embedding model, which is in East US 2 because its availability in Central India was not confirmed.</p></div>
+        <div><h3>Secrets</h3><p>Keys and connection strings go into Key Vault, and the web app and Functions read them through Key Vault references instead of plaintext settings.</p></div>
+        <div><h3>Tear down</h3><p><code>az group delete --name rg-advsearch-dev --yes --no-wait</code> removes steps 1 to 9. Defender plans are subscription-wide and must be reset separately.</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>POC deployment by TTNS-Deployments. Released under the MIT License.</span>
+    <nav aria-label="Repository">
+      <a href="https://github.com/TTNS-Deployments/Advance_Search#readme">README</a>
+      <a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/SECURITY.md">Security</a>
+      <a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/SUPPORT.md">Support</a>
+      <a href="https://github.com/TTNS-Deployments/Advance_Search/blob/main/LICENSE">License</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  // Copy the deploy commands
+  (function () {
+    var btn = document.getElementById('copy-btn');
+    var text = 'git clone https://github.com/TTNS-Deployments/Advance_Search.git\ncd Advance_Search && ./deploy.sh';
+    btn.addEventListener('click', function () {
+      function done(ok) {
+        btn.textContent = ok ? 'Copied' : 'Press Ctrl+C';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 1800);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+      } else { done(false); }
+    });
+  })();
+
+  // Filter the resource table
+  (function () {
+    var input = document.getElementById('q');
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#tbl tbody tr'));
+    var count = document.getElementById('count');
+    var empty = document.getElementById('empty');
+    var table = document.getElementById('tbl');
+    function update() {
+      var q = input.value.trim().toLowerCase();
+      var shown = 0;
+      rows.forEach(function (r) {
+        var match = !q || r.textContent.toLowerCase().indexOf(q) !== -1;
+        r.hidden = !match;
+        if (match) shown++;
+      });
+      count.textContent = q ? shown + ' of ' + rows.length + ' shown' : '';
+      table.style.display = shown ? '' : 'none';
+      empty.style.display = shown ? 'none' : 'block';
+    }
+    input.addEventListener('input', update);
+  })();
+</script>
+</body>
+</html>
