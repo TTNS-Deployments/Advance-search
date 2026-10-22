@@ -1,4 +1,4 @@
-![Advance Search](imgs/banner.svg)
+
 
 # Advance Search
 
@@ -8,7 +8,7 @@ This repository is a proof-of-concept (POC) deployment. It is meant to get a wor
 
 A simple front-end page that summarizes the deployment is in [`index.html`](index.html) and can be published with GitHub Pages.
 
-## Summary Table of Deployed Resources
+## Overview
 
 Resources are listed in deployment order.
 
@@ -46,9 +46,6 @@ Django runs on the App Service, backed by Cosmos DB for structured data and Azur
 
 ![Advance Search architecture](imgs/architecture.svg)
 
-### Why the embedding model is in East US 2, not Central India
-
-Region availability for Azure OpenAI embedding models is not published as consistently as it is for chat models, and `text-embedding-3-large` was not confirmed available in Central India when this was written. AI Search does not need to be in the same region as the embedding resource, so this one resource deploys to `eastus2` while everything else stays in `centralindia`. Cross-region works with a small latency cost. Check current availability before changing it: <https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-models/concepts/models-sold-directly-by-azure>
 
 ## Repository Layout
 
