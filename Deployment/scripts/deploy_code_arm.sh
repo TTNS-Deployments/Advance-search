@@ -5,7 +5,7 @@
 #
 # Options
 #   -g, --resource-group   resource group of the deployment [required]
-#   -e, --environment      environment name; the infrastructure deployment is "advancesearch-<env>" [required]
+#   -e, --environment      environment name; the infrastructure deployment is "advsrch-<env>" [required]
 #       --seed             also upload Data/sample_docs/*.pdf|docx|xlsx to the documents container
 #       --seed-only        only upload the sample documents (no code deployment)
 #   -h, --help             show this help
@@ -35,7 +35,7 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$RG" && -n "$ENV" ]] || { echo "Usage: $0 -g <resource-group> -e <environment> [--seed]  (see --help)" >&2; exit 1; }
 
-DEPLOYMENT="advancesearch-$ENV"
+DEPLOYMENT="advsrch-$ENV"
 STARTUP="python -m gunicorn --bind=0.0.0.0:8000 --timeout 600 --workers 1 --threads 4 config.wsgi"
 out() { az deployment group show -g "$RG" -n "$DEPLOYMENT" --query "properties.outputs.$1.value" -o tsv; }
 

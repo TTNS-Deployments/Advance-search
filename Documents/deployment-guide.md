@@ -53,7 +53,7 @@ What the command does (about 10–15 minutes the first time):
 3. Reads your object ID from the ARM token (no Microsoft Graph) for your data roles.
 4. Looks up the shared plan's resource ID (`az appservice plan show ... --query id -o tsv`) and passes it as
    `existingAppServicePlanId`. If the plan is not found it stops. The plan is never modified.
-5. Deploys `azuredeploy.json` with `demo.parameters.json` (deployment name `advancesearch-demo`).
+5. Deploys `azuredeploy.json` with `demo.parameters.json` (deployment name `advsrch-demo`).
 6. Always runs the code step next (`deploy_code_arm.sh`), because an infrastructure deployment resets the web
    app's settings: builds `build/webapp.zip` with every library, uploads it to `code-packages` with the storage
    account key, sets `WEBSITE_RUN_FROM_PACKAGE` to a one-year read-only SAS URL and the startup command
@@ -62,8 +62,8 @@ What the command does (about 10–15 minutes the first time):
 7. Prints the web app URL and the sign-in hint.
 
 Resources created (names end in a 6-character suffix from the resource group, so they never collide with other
-resources in it): `asrch-demo-<suffix>-kv`, storage `asrchdemo<suffix>st`, `-log`, `-appi`, `-openai` (South
-India), `-search`, and the web app `asrch-demo-<suffix>-web` on the shared plan.
+resources in it): `advsrch-demo-<suffix>-kv`, storage `advsrchdemo<suffix>st`, `-log`, `-appi`, `-openai` (South
+India), `-search`, and the web app `advsrch-demo-<suffix>-web` on the shared plan.
 
 ## 3. After deployment
 
@@ -106,7 +106,7 @@ Consequences:
 The **Deploy to Azure** button in the README opens the portal form (`createUiDefinition.json`) with a dropdown per
 SKU and a demo password field. It deploys the infrastructure only, with a new App Service plan. Then deploy the
 code from Cloud Shell: `Deployment/scripts/deploy.sh -e <env> -g <resource-group> --skip-infra`. The form's
-environment name must match the `-e` value, because the scripts read the deployment `advancesearch-<env>`; if the
+environment name must match the `-e` value, because the scripts read the deployment `advsrch-<env>`; if the
 portal names the deployment differently, run the full `deploy.sh` instead.
 
 ## 6. Deploy with GitHub Actions (untested)
@@ -155,6 +155,6 @@ Edit the parameters file and run `deploy.sh` again (infrastructure and code). No
 
 ## Remove the demo
 
-Delete the resources whose names start with `asrch-demo-` and the storage account `asrchdemo...st` in the
+Delete the resources whose names start with `advsrch-demo-` and the storage account `advsrchdemo...st` in the
 resource group (portal, filter by tag `project: advance-search`). Do **not** delete the resource group or the shared
 App Service plan. Purge the soft-deleted Key Vault if you redeploy with the same name.

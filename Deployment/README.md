@@ -36,7 +36,7 @@ web app runs gunicorn with 1 worker and 4 threads and ingests one file at a time
 
 Sign-in uses one shared password (`authMode=password`) stored in Key Vault as `demo-password`. It is created only
 when `demoPassword` is passed, so later deployments keep it. Remove the demo by deleting the resources named
-`asrch-demo-*` and `asrchdemo*st`; leave the resource group and the shared plan.
+`advsrch-demo-*` and `advsrchdemo*st`; leave the resource group and the shared plan.
 
 ## SKU and sizing parameters
 
@@ -44,7 +44,7 @@ Values in the three parameter files; "Options" are the values the template accep
 
 | Parameter | demo | dev | prod | Options / notes |
 |---|---|---|---|---|
-| `solutionPrefix` | asrch | asrch | asrch | 3–8 lowercase letters or digits; part of every name |
+| `solutionPrefix` | advsrch | advsrch | advsrch | 3–8 lowercase letters or digits; part of every name |
 | `environmentName` | demo | dev | prod | `demo`, `dev`, `test`, `uat`, `prod` |
 | `location` | centralindia | centralindia | centralindia | Region of everything except Azure OpenAI. With an existing plan, the plan's region |
 | **Storage** | | | | |

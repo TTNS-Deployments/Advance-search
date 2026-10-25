@@ -5,14 +5,14 @@
     "_generator": {
       "name": "bicep",
       "version": "0.48.1.52935",
-      "templateHash": "5810763945610140663"
+      "templateHash": "8508727022158572313"
     },
     "description": "Advance Search: meaning-based search over PDF, Word and Excel documents (web app, Blob Storage, Azure OpenAI embeddings, Azure AI Search, Key Vault, monitoring)."
   },
   "parameters": {
     "solutionPrefix": {
       "type": "string",
-      "defaultValue": "asrch",
+      "defaultValue": "advsrch",
       "minLength": 3,
       "maxLength": 8,
       "metadata": {

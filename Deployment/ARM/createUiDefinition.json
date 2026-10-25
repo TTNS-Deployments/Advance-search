@@ -14,7 +14,7 @@
         "name": "solutionPrefix",
         "type": "Microsoft.Common.TextBox",
         "label": "Solution prefix",
-        "defaultValue": "asrch",
+        "defaultValue": "advsrch",
         "toolTip": "Used in all resource names.",
         "constraints": {
           "required": true,

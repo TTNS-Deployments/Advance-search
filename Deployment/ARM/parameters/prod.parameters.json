@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "solutionPrefix": {
-      "value": "asrch"
+      "value": "advsrch"
     },
     "location": {
       "value": "centralindia"

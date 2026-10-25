@@ -69,7 +69,7 @@ with real embeddings.
   client cannot reset the counter by sending its own header.
 - `demo.env`: `SEED=1` (the demo uploads the 13 sample documents; the web app indexes them after the restart).
 - Names: `<prefix>-<env>-<suffix>-<role>`, suffix = 6 characters of `uniqueString(resourceGroup().id, prefix, env)`;
-  storage `asrch<env><suffix>st`. Deployment name `advancesearch-<env>`.
+  storage `advsrch<env><suffix>st`. Deployment name `advsrch-<env>`.
 - The demo web app joins the existing plan `ccai-demo-gqausd-web-plan` (looked up by name at deployment time; no
   subscription ID in the repo); the plan is never modified. gunicorn 1 worker × 4 threads.
 - Sign-in: shared demo password + role choice, documented as demo-only; Entra ID is a roadmap item.

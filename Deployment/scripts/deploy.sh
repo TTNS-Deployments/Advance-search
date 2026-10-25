@@ -76,7 +76,7 @@ part += "=" * (-len(part) % 4)
 print(json.loads(base64.urlsafe_b64decode(part)).get("oid", ""))' 2>/dev/null || true
 }
 
-DEPLOYMENT="advancesearch-$ENV"
+DEPLOYMENT="advsrch-$ENV"
 if [[ $SKIP_INFRA -eq 0 ]]; then
   # Reuse an existing resource group; create it only if missing.
   if [[ "$(az group exists -n "$RG")" == "true" ]]; then

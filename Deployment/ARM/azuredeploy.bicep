@@ -10,7 +10,7 @@ metadata description = 'Advance Search: meaning-based search over PDF, Word and 
 @description('Short lowercase alphanumeric prefix for all resource names (3-8 characters).')
 @minLength(3)
 @maxLength(8)
-param solutionPrefix string = 'asrch'
+param solutionPrefix string = 'advsrch'
 
 @description('Environment name, used in resource names and tags.')
 @allowed(['demo', 'dev', 'test', 'uat', 'prod'])

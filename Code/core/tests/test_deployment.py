@@ -235,3 +235,20 @@ def test_demo_env_and_no_secrets_in_repository():
         assert not found, f"{path}: {found}"
         mails = [m for m in email.findall(text) if not m.startswith(("noreply@", "git@"))]
         assert not mails, f"{path}: {mails}"
+
+
+def test_every_resource_name_carries_the_solution_prefix():
+    """Several apps share one resource group: every resource this template names starts with the prefix
+    (default advsrch). Exceptions: child resources, role assignments (GUIDs), and private DNS zones, whose names
+    Azure fixes (privatelink.*)."""
+    assert TEMPLATE["parameters"]["solutionPrefix"]["defaultValue"] == "advsrch"
+    for path in PARAM_FILES:
+        assert json.loads(path.read_text())["parameters"]["solutionPrefix"]["value"] == "advsrch"
+    names = TEMPLATE["variables"]["names"]
+    for role, expression in names.items():
+        assert "variables('baseName')" in expression or "variables('prefix')" in expression, role
+    for r in resources():
+        if "/" in r["type"].split("/", 1)[1] or r["type"] in ("Microsoft.Authorization/roleAssignments",
+                                                                "Microsoft.Network/privateDnsZones"):
+            continue
+        assert "variables('names')" in r["name"] or "variables('baseName')" in r["name"], (r["type"], r["name"])

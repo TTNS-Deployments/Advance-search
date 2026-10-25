@@ -31,8 +31,8 @@ if any(f in cmd for f in fail):
 def query():
     return args[args.index("--query") + 1] if "--query" in args else ""
 
-outputs = {"webAppName": "asrch-demo-abc123-web", "storageAccountName": "asrchdemoabc123st",
-           "webAppUrl": "https://asrch-demo-abc123-web.azurewebsites.net"}
+outputs = {"webAppName": "advsrch-demo-abc123-web", "storageAccountName": "advsrchdemoabc123st",
+           "webAppUrl": "https://advsrch-demo-abc123-web.azurewebsites.net"}
 if cmd.startswith("account show"):
     print({"name": "Test Subscription", "user.type": os.environ.get("FAKE_AZ_USER_TYPE", "user")}[query()])
 elif cmd.startswith("account get-access-token"):
@@ -56,9 +56,9 @@ elif cmd.startswith("storage account keys list"):
     print("ZmFrZWtleQ==")
 elif cmd.startswith("storage blob generate-sas"):
     name = args[args.index("-n") + 1]
-    print(f"https://asrchdemoabc123st.blob.core.windows.net/code-packages/{name}?sv=2022&sig=x")
+    print(f"https://advsrchdemoabc123st.blob.core.windows.net/code-packages/{name}?sv=2022&sig=x")
 elif cmd.startswith("webapp show"):
-    print("asrch-demo-abc123-web.azurewebsites.net")
+    print("advsrch-demo-abc123-web.azurewebsites.net")
 '''
 
 
@@ -132,7 +132,7 @@ def test_demo_deployment_uses_management_api_only(fake_az):
     assert find(commands, "appservice plan show -g Vaibhav.Chaudhary -n ccai-demo-gqausd-web-plan --query id -o tsv")
     assert not [c for c in cmds if c.startswith(("appservice plan update", "appservice plan create"))]
     create = find(commands, "deployment group create")[0]
-    assert "-n advancesearch-demo" in create
+    assert "-n advsrch-demo" in create
     assert "@" + str(REPO / "Deployment/ARM/parameters/demo.parameters.json") in create
     assert f"deployerPrincipalId={OID}" in create and "deployerPrincipalType=User" in create
     assert "existingAppServicePlanId=/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/" \
@@ -142,7 +142,7 @@ def test_demo_deployment_uses_management_api_only(fake_az):
     i_create = cmds.index(create)
     settings = find(commands, "webapp config appsettings set")[0]
     assert cmds.index(settings) > i_create
-    assert "WEBSITE_RUN_FROM_PACKAGE=https://asrchdemoabc123st.blob.core.windows.net/code-packages/webapp-" in settings
+    assert "WEBSITE_RUN_FROM_PACKAGE=https://advsrchdemoabc123st.blob.core.windows.net/code-packages/webapp-" in settings
     assert "SCM_DO_BUILD_DURING_DEPLOYMENT=false" in settings and "PYTHONPATH=/home/site/wwwroot/.packages" in settings
     startup = find(commands, "webapp config set")[0]
     assert "--workers 1 --threads 4" in startup and "python -m gunicorn" in startup
@@ -156,7 +156,7 @@ def test_demo_deployment_uses_management_api_only(fake_az):
     # Never uses data-plane tokens, Kudu or Graph.
     forbidden = ("ad ", "webapp deploy", "functionapp", "keyvault secret", "webapp up")
     assert not [c for c in cmds if c.startswith(forbidden) or "--auth-mode login" in c]
-    assert "Done. Web app: https://asrch-demo-abc123-web.azurewebsites.net" in result.stdout
+    assert "Done. Web app: https://advsrch-demo-abc123-web.azurewebsites.net" in result.stdout
     assert "demo password" in result.stdout
 
 
