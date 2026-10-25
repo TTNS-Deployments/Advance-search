@@ -25,7 +25,7 @@ management-API (`https://management.azure.com`) tokens work.
 | 5 | `deploy.sh`, `deploy_code_arm.sh`, `package.sh` + fake-`az` tests | Done (not run in Cloud Shell) |
 | 6 | Playwright tests, Azurite tests, screenshots, architecture diagram, `qa/` report | Done |
 | 7 | Documentation, README, CI workflows | Done |
-| 8 | First demo deployment | **Next: the user runs it in Cloud Shell** |
+| 8 | First demo deployment | **Ran successfully 2026-10-25** from Cloud Shell (infrastructure, code, sample upload). In-app checks pending |
 
 Test totals (2026-10-25): core 129, web 55, browser 37, Azurite 3 — all pass. Details: `qa/TEST_REPORT.md`.
 
@@ -99,6 +99,17 @@ cd ~ && git clone https://github.com/TTNS-Deployments/Advance-search.git ; cd ~/
 
 3. Open the printed URL, sign in as Admin, wait for the sample documents to show *Indexed*, search
    `how many days off do I get`.
+
+## Demo deployment (2026-10-25)
+
+- Command: `Deployment/scripts/deploy.sh -e demo --param demoPassword='...'` in Cloud Shell; every step finished.
+- Pre-checks: `text-embedding-3-small` v1 offers GlobalStandard in South India; quota
+  `OpenAI.GlobalStandard.text-embedding-3-small` 0 / 1000 used (demo uses 10).
+- Web app: `advsrch-demo-i5iesm-web` on the shared plan `ccai-demo-gqausd-web-plan`,
+  https://advsrch-demo-i5iesm-web.azurewebsites.net. Storage `advsrchdemoi5iesmst`. Resource suffix `i5iesm`.
+- `az deployment group create` printed the generic Azure CLI warning "This output may compromise security by
+  showing secrets"; nothing secret is in the outputs (the password is a secure parameter).
+- Still to confirm in the app: sign-in, sample documents reach *Indexed*, search results and match %.
 
 ## Open items
 
