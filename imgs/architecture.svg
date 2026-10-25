@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="1000" height="600" role="img" aria-labelledby="title desc" font-family="Segoe UI, system-ui, -apple-system, Helvetica, Arial, sans-serif">
+  <title id="title">Advance Search architecture</title>
+  <desc id="desc">Users reach a Django web app on Azure App Service. The app stores original files in Blob Storage, turns passages into vectors with Azure OpenAI embeddings, and indexes and queries them in Azure AI Search. Secrets come from Key Vault; telemetry goes to Application Insights. In production the four data services sit behind private endpoints.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10z" fill="#4b5370"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1e2450" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .box { fill: #ffffff; stroke: #d5d9e6; stroke-width: 1.5; filter: url(#shadow); }
+      .app { fill: #eef0ff; stroke: #4a4ee0; stroke-width: 2; }
+      .inner { fill: #ffffff; stroke: #c3c6f5; stroke-width: 1.2; }
+      .title { font-size: 16px; font-weight: 700; fill: #151a2d; }
+      .sub { font-size: 12.5px; fill: #586079; }
+      .small { font-size: 11.5px; fill: #586079; }
+      .label { font-size: 12px; fill: #2c3352; }
+      .step { fill: #4a4ee0; }
+      .stepnum { font-size: 12px; font-weight: 700; fill: #ffffff; }
+      .flow { stroke: #4b5370; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .soft { stroke: #9aa1b8; stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; marker-end: url(#arrow); }
+      .accent-blob { fill: #0f9b8e; }
+      .accent-ai { fill: #7a4ee0; }
+      .accent-search { fill: #1f6fd1; }
+      .accent-ops { fill: #8a93ad; }
+    </style>
+  </defs>
+
+  <rect width="1000" height="600" fill="#f7f8fc"/>
+  <text x="30" y="40" font-size="22" font-weight="800" fill="#151a2d">Advance <tspan fill="#4a4ee0">Search</tspan></text>
+  <text x="30" y="62" class="sub">Meaning-based search over PDF, Word and Excel documents on Azure</text>
+
+  <!-- Users -->
+  <rect x="30" y="200" width="150" height="150" rx="14" class="box"/>
+  <circle cx="105" cy="242" r="16" fill="none" stroke="#4a4ee0" stroke-width="2.2"/>
+  <path d="M77 290c4-18 16-26 28-26s24 8 28 26" fill="none" stroke="#4a4ee0" stroke-width="2.2" stroke-linecap="round"/>
+  <text x="105" y="318" text-anchor="middle" class="title">Users</text>
+  <text x="105" y="336" text-anchor="middle" class="small">Admin · User (browser)</text>
+
+  <!-- Web app -->
+  <rect x="240" y="120" width="300" height="320" rx="16" class="app"/>
+  <text x="260" y="150" class="title">Web app</text>
+  <text x="260" y="168" class="sub">Django on App Service (Linux, Python 3.12)</text>
+  <rect x="260" y="184" width="260" height="56" rx="10" class="inner"/>
+  <text x="276" y="207" class="label" font-weight="700">Search · Documents · Settings</text>
+  <text x="276" y="226" class="small">htmx pages, demo sign-in, roles</text>
+  <rect x="260" y="252" width="260" height="76" rx="10" class="inner"/>
+  <text x="276" y="275" class="label" font-weight="700">Ingestion worker (one thread)</text>
+  <text x="276" y="294" class="small">extract (pypdf, python-docx, openpyxl)</text>
+  <text x="276" y="311" class="small">split into passages · embed · index</text>
+  <rect x="260" y="340" width="260" height="56" rx="10" class="inner"/>
+  <text x="276" y="363" class="label" font-weight="700">Hybrid search + match score</text>
+  <text x="276" y="382" class="small">group passages by document · top 3</text>
+  <text x="260" y="425" class="small">System-assigned managed identity (RBAC, no keys)</text>
+
+  <!-- Private endpoint boundary -->
+  <rect x="590" y="88" width="385" height="400" rx="18" fill="none" stroke="#9aa1b8" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="606" y="108" class="small" font-style="italic">Private endpoints in production (privateNetworking = true)</text>
+
+  <!-- Blob Storage -->
+  <rect x="610" y="122" width="345" height="96" rx="14" class="box"/>
+  <rect x="610" y="122" width="8" height="96" rx="4" class="accent-blob"/>
+  <text x="632" y="150" class="title">Blob Storage</text>
+  <text x="632" y="170" class="sub">documents (originals + status in metadata)</text>
+  <text x="632" y="188" class="sub">config (settings overrides) · code-packages</text>
+  <text x="632" y="206" class="small">Standard_LRS, soft delete 7 days</text>
+
+  <!-- Azure OpenAI -->
+  <rect x="610" y="234" width="345" height="96" rx="14" class="box"/>
+  <rect x="610" y="234" width="8" height="96" rx="4" class="accent-ai"/>
+  <text x="632" y="262" class="title">Azure OpenAI</text>
+  <text x="632" y="282" class="sub">Embeddings: text-embedding-3-small (1536)</text>
+  <text x="632" y="300" class="sub">Own resource in South India</text>
+  <text x="632" y="318" class="small">no chat model</text>
+
+  <!-- Azure AI Search -->
+  <rect x="610" y="346" width="345" height="124" rx="14" class="box"/>
+  <rect x="610" y="346" width="8" height="124" rx="4" class="accent-search"/>
+  <text x="632" y="374" class="title">Azure AI Search</text>
+  <text x="632" y="394" class="sub">Index of passages: text + vector (HNSW, cosine)</text>
+  <text x="632" y="412" class="sub">Keyword + vector + semantic ranker</text>
+  <text x="632" y="430" class="small">Basic tier, semantic ranker free plan (demo)</text>
+  <text x="632" y="448" class="small">Index created by the app (idempotent)</text>
+
+  <!-- Operations row -->
+  <rect x="240" y="500" width="300" height="70" rx="14" class="box"/>
+  <rect x="240" y="500" width="8" height="70" rx="4" class="accent-ops"/>
+  <text x="262" y="528" class="title">Key Vault</text>
+  <text x="262" y="548" class="sub">demo password · Django secret key</text>
+  <rect x="610" y="500" width="345" height="70" rx="14" class="box"/>
+  <rect x="610" y="500" width="8" height="70" rx="4" class="accent-ops"/>
+  <text x="632" y="528" class="title">Application Insights</text>
+  <text x="632" y="548" class="sub">with Log Analytics: requests, errors, logs</text>
+
+  <!-- Flows -->
+  <path class="flow" d="M180 255 H236"/>
+  <path class="flow" d="M236 300 H184"/>
+  <path class="flow" d="M540 190 H606"/>
+  <path class="flow" d="M540 285 H606"/>
+  <path class="flow" d="M540 380 H606"/>
+  <path class="soft" d="M390 440 V496"/>
+  <path class="soft" d="M520 440 C 560 470, 590 510, 606 528"/>
+
+  <!-- Step numbers (match the table in README.md) -->
+  <g>
+    <circle cx="208" cy="243" r="11" class="step"/><text x="208" y="247" text-anchor="middle" class="stepnum">1</text>
+    <circle cx="573" cy="178" r="11" class="step"/><text x="573" y="182" text-anchor="middle" class="stepnum">2</text>
+    <circle cx="573" cy="273" r="11" class="step"/><text x="573" y="277" text-anchor="middle" class="stepnum">3</text>
+    <circle cx="573" cy="368" r="11" class="step"/><text x="573" y="372" text-anchor="middle" class="stepnum">4</text>
+    <circle cx="573" cy="398" r="11" class="step"/><text x="573" y="402" text-anchor="middle" class="stepnum">5</text>
+    <circle cx="208" cy="313" r="11" class="step"/><text x="208" y="317" text-anchor="middle" class="stepnum">6</text>
+  </g>
+  <text x="30" y="590" class="small">1 upload · 2 store original · 3 embed passages and queries · 4 index passages · 5 hybrid query · 6 results and document open (streamed through the app)</text>
+</svg>
