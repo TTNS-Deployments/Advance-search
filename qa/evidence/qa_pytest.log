@@ -1,0 +1,48 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.7.0 -- /workspaces/Advance-search/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /workspaces/Advance-search
+collecting ... collected 40 items
+
+qa/tests/test_azurite.py::test_AZ01_ingest_search_and_status_metadata PASSED [  2%]
+qa/tests/test_azurite.py::test_AZ02_conditional_claim PASSED             [  5%]
+qa/tests/test_azurite.py::test_AZ03_settings_overrides_and_delete PASSED [  7%]
+qa/tests/test_ui.py::test_UI01_admin_sign_in_shows_admin_navigation PASSED [ 10%]
+qa/tests/test_ui.py::test_UI02_user_sign_in_hides_admin_pages PASSED     [ 12%]
+qa/tests/test_ui.py::test_UI03_wrong_password_and_sign_out PASSED        [ 15%]
+qa/tests/test_ui.py::test_UI04_password_reveal_toggle PASSED             [ 17%]
+qa/tests/test_ui.py::test_UI05_upload_file_and_watch_it_become_indexed PASSED [ 20%]
+qa/tests/test_ui.py::test_UI06_upload_validation_messages PASSED         [ 22%]
+qa/tests/test_ui.py::test_UI07_status_chips_and_no_text_document PASSED  [ 25%]
+qa/tests/test_ui.py::test_UI08_filter_documents PASSED                   [ 27%]
+qa/tests/test_ui.py::test_UI09_delete_needs_confirmation PASSED          [ 30%]
+qa/tests/test_ui.py::test_UI10_reindex_and_sync PASSED                   [ 32%]
+qa/tests/test_ui.py::test_UI11_open_document_streams_original PASSED     [ 35%]
+qa/tests/test_ui.py::test_UI12_queries_return_expected_document_in_top_3[how many days off do I get] PASSED [ 37%]
+qa/tests/test_ui.py::test_UI12_queries_return_expected_document_in_top_3[maternity leave entitlement] PASSED [ 40%]
+qa/tests/test_ui.py::test_UI12_queries_return_expected_document_in_top_3[what to do if my laptop is sto] PASSED [ 42%]
+qa/tests/test_ui.py::test_UI12_queries_return_expected_document_in_top_3[my notebook computer went miss] PASSED [ 45%]
+qa/tests/test_ui.py::test_UI12_queries_return_expected_document_in_top_3[how do I set up multi factor a] PASSED [ 47%]
+qa/tests/test_ui.py::test_UI12_queries_return_expected_document_in_top_3[who approves a purchase over f] PASSED [ 50%]
+qa/tests/test_ui.py::test_UI13_result_cards_and_match_meter PASSED       [ 52%]
+qa/tests/test_ui.py::test_UI14_meter_colour_follows_value PASSED         [ 55%]
+qa/tests/test_ui.py::test_UI15_copy_link_and_match_popover PASSED        [ 57%]
+qa/tests/test_ui.py::test_UI16_no_close_match_and_empty_states PASSED    [ 60%]
+qa/tests/test_ui.py::test_UI17_keyboard_shortcut_examples_and_recent PASSED [ 62%]
+qa/tests/test_ui.py::test_UI18_deep_link_renders_results_without_javascript_request PASSED [ 65%]
+qa/tests/test_ui.py::test_UI19_settings_change_number_of_results PASSED  [ 67%]
+qa/tests/test_ui.py::test_UI20_theme_toggle_persists PASSED              [ 70%]
+qa/tests/test_ui.py::test_UI21_no_horizontal_overflow_at_375px[/auth/login-None] PASSED [ 72%]
+qa/tests/test_ui.py::test_UI21_no_horizontal_overflow_at_375px[/?q=who+approves+a+purchase+over+five+lakh-User] PASSED [ 75%]
+qa/tests/test_ui.py::test_UI21_no_horizontal_overflow_at_375px[/documents-Admin] PASSED [ 77%]
+qa/tests/test_ui.py::test_UI21_no_horizontal_overflow_at_375px[/settings-Admin] PASSED [ 80%]
+qa/tests/test_ui.py::test_UI22_accessibility_sanity[/auth/login] PASSED  [ 82%]
+qa/tests/test_ui.py::test_UI22_accessibility_sanity[/] PASSED            [ 85%]
+qa/tests/test_ui.py::test_UI22_accessibility_sanity[/?q=lost+laptop] PASSED [ 87%]
+qa/tests/test_ui.py::test_UI22_accessibility_sanity[/documents] PASSED   [ 90%]
+qa/tests/test_ui.py::test_UI22_accessibility_sanity[/settings] PASSED    [ 92%]
+qa/tests/test_ui.py::test_UI23_focus_order_and_visible_focus PASSED      [ 95%]
+qa/tests/test_ui.py::test_UI24_reduced_motion_respected PASSED           [ 97%]
+qa/tests/test_ui.py::test_UI25_security_headers_on_pages PASSED          [100%]
+
+============================= 40 passed in 32.23s ==============================

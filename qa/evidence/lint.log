@@ -1,0 +1,9 @@
+## shellcheck
+shellcheck: no findings
+bash -n ok: Deployment/scripts/deploy.sh
+bash -n ok: Deployment/scripts/deploy_code_arm.sh
+bash -n ok: Deployment/scripts/package.sh
+## bicep
+Bicep CLI version 0.48.1 (cec7951cf6)
+azuredeploy.json matches the Bicep source
+bicep lint: no findings

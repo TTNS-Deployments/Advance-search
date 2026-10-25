@@ -1,0 +1,8 @@
+Built /workspaces/Advance-search/build/webapp.zip (24M)
+numpy in package: 0
+files:  75631832                     5992 files
+healthz: ok
+sign-in: 302
+upload: {"ok": true, "file": "Leave-Policy-2026.pdf", "name": "Leave-Policy-2026.pdf", "message": "Queued for indexing."}
+search: [('Leave-Policy-2026.pdf', 75, 'semantic')]
+tracebacks in server log: 0
