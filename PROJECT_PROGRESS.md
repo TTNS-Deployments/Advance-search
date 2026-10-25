@@ -73,6 +73,9 @@ with real embeddings.
 - The demo web app joins the existing plan `ccai-demo-gqausd-web-plan` (looked up by name at deployment time; no
   subscription ID in the repo); the plan is never modified. gunicorn 1 worker × 4 threads.
 - Sign-in: shared demo password + role choice, documented as demo-only; Entra ID is a roadmap item.
+- Branding (user's request, 2026-10-25): the Tata Tele Business Services logo
+  (`Code/webapp/static/img/ttbs-logo.png`) sits in the header next to the "Advance Search" wordmark and on the
+  sign-in card. In the dark theme it has a white backing, because its dark lettering is invisible on dark grey.
 
 ## Commands for the user (Azure Cloud Shell, Bash)
 

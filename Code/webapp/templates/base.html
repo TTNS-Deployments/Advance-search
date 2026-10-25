@@ -18,7 +18,11 @@
   {% if user.is_authenticated %}
   <header class="site-header">
     <div class="container header-inner">
-      <a class="wordmark" href="{% url 'portal:search' %}" aria-label="Advance Search, home">Advance<span class="wordmark-accent">Search</span></a>
+      <a class="brand" href="{% url 'portal:search' %}" aria-label="Tata Tele Business Services, Advance Search home">
+        <img class="brand-logo" src="{% static 'img/ttbs-logo.png' %}" alt="" width="150" height="30">
+        <span class="brand-divider" aria-hidden="true"></span>
+        <span class="wordmark">Advance<span class="wordmark-accent">Search</span></span>
+      </a>
       <nav class="main-nav" aria-label="Main">
         <ul>
           {% for item in nav_items %}

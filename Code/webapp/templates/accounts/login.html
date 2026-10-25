@@ -1,11 +1,12 @@
 {% extends "base.html" %}
-{% load portal_tags %}
+{% load static portal_tags %}
 {% block title %}Sign in · Advance Search{% endblock %}
 {% block body_class %}page-login{% endblock %}
 {% block content %}
 <div class="login-wrap">
   <section class="login-card" aria-labelledby="login-title">
     <div class="login-brand">
+      <img class="login-logo" src="{% static 'img/ttbs-logo.png' %}" alt="Tata Tele Business Services" width="220" height="44">
       <span class="wordmark wordmark-lg">Advance<span class="wordmark-accent">Search</span></span>
       <p class="muted">Find documents by meaning, not just keywords.</p>
     </div>
