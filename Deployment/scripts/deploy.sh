@@ -17,7 +17,7 @@
 #                       WEBSITE_RUN_FROM_PACKAGE; the app stops working until the code step runs again)
 #   -h, --help          show this help
 #
-# Uses only management-API (ARM) calls, so it runs in Azure Cloud Shell. Needs Owner (or Contributor + User
+# Uses only management-API (ARM) requests, so it runs in Azure Cloud Shell. Needs Owner (or Contributor + User
 # Access Administrator) on the resource group, plus python3, pip and zip (all in Cloud Shell).
 set -euo pipefail
 

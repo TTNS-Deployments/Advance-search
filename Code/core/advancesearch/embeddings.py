@@ -126,7 +126,7 @@ class EmbeddingError(RuntimeError):
 
 
 class AzureOpenAIEmbeddings:
-    """Calls the Azure OpenAI embeddings REST API with retry and back-off on 429 and 5xx."""
+    """Sends requests to the Azure OpenAI embeddings REST API, with retry and back-off on 429 and 5xx."""
 
     MAX_ATTEMPTS = 6
 

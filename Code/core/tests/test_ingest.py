@@ -99,12 +99,12 @@ def test_failed_document_keeps_error(service, tmp_path):
 def test_embedding_failure_marks_failed_and_removes_partial_chunks(service, tmp_path, monkeypatch):
     path = make_pdf(tmp_path / "doc.pdf", ["Page one text.", "Page two text."])
     result = upload(service, path, process=False)
-    calls = {"n": 0}
+    attempts = {"n": 0}
     original = service.embedder.embed
 
     def flaky(texts):
-        calls["n"] += 1
-        if calls["n"] > 1:
+        attempts["n"] += 1
+        if attempts["n"] > 1:
             raise RuntimeError("HTTP 500 from embeddings")
         return original(texts)
 

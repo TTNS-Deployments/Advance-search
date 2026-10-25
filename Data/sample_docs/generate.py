@@ -194,7 +194,7 @@ SECURITY_POLICY = {
         ("Acceptable use", 1, [
             "Company devices and accounts are for business use. Limited personal use is allowed if it does not "
             "affect work, break the law or expose company data. Never install unapproved software or disable the "
-            "endpoint protection agent.",
+            "endpoint protection software.",
         ]),
         ("Passwords and multi-factor authentication", 1, [
             "Passphrases must be at least 14 characters and must not be reused on other sites. Use the company "
@@ -336,6 +336,20 @@ METER_SPEC = {
 # ---------------------------------------------------------------------------- writers
 
 
+def normalise_zip(path: Path) -> None:
+    """Word and Excel files are zip archives; give every entry a fixed date so output is byte-identical."""
+    import zipfile
+
+    with zipfile.ZipFile(path) as src:
+        entries = [(info, src.read(info.filename)) for info in src.infolist()]
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as dst:
+        for info, data in entries:
+            fixed = zipfile.ZipInfo(info.filename, date_time=FIXED.timetuple()[:6])
+            fixed.compress_type = zipfile.ZIP_DEFLATED
+            fixed.external_attr = info.external_attr
+            dst.writestr(fixed, data)
+
+
 def write_pdf(path: Path, doc: dict) -> None:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -402,6 +416,7 @@ def write_docx(path: Path, doc: dict) -> None:
                 for cell, value in zip(cells, row):
                     cell.text = value
     d.save(str(path))
+    normalise_zip(path)
 
 
 def _workbook():
@@ -453,6 +468,7 @@ def write_procurement(path: Path) -> None:
     ], [24, 34, 16, 18, 16])
     _sheet(wb, "Internal notes", ["Note"], [["Draft thresholds under review - not for circulation"]], [60], hidden=True)
     wb.save(str(path))
+    normalise_zip(path)
 
 
 def write_budget(path: Path) -> None:
@@ -483,6 +499,7 @@ def write_budget(path: Path) -> None:
         ["Contingency held by Finance", "3 percent of operating budget"],
     ], [40, 30])
     wb.save(str(path))
+    normalise_zip(path)
 
 
 def write_migration_plan(path: Path) -> None:
@@ -510,6 +527,7 @@ def write_migration_plan(path: Path) -> None:
         ["Cloud architect", "Farah Siddiqui", "5103"],
     ], [24, 20, 12])
     wb.save(str(path))
+    normalise_zip(path)
 
 
 def write_price_list(path: Path) -> None:
@@ -530,6 +548,7 @@ def write_price_list(path: Path) -> None:
         ["Spare battery for FT-200 tablet", "FE-2030", "Each", 3900, 10],
     ], [34, 12, 16, 16, 14])
     wb.save(str(path))
+    normalise_zip(path)
 
 
 def main() -> None:

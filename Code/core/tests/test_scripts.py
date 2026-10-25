@@ -1,7 +1,7 @@
 """Deployment scripts tested against a fake `az` that records every call and returns canned output.
 
 The real Azure CLI cannot sign in from the development environment, so these tests check what the scripts would
-run (order, arguments, management-API-only calls) and how they handle failures.
+run (order, arguments, management-API-only commands) and how they handle failures.
 """
 import base64
 import json
@@ -84,19 +84,19 @@ def fake_az(tmp_path):
     def run(script, *args, **extra_env):
         result = subprocess.run([str(SCRIPTS / script), *args], capture_output=True, text=True,
                                 env={**env, **extra_env}, cwd=tmp_path, timeout=120)
-        calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
+        commands = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
         log.unlink(missing_ok=True)
-        return result, calls
+        return result, commands
 
     return run
 
 
-def joined(calls):
-    return [" ".join(c) for c in calls]
+def joined(commands):
+    return [" ".join(c) for c in commands]
 
 
-def find(calls, prefix):
-    return [c for c in joined(calls) if c.startswith(prefix)]
+def find(commands, prefix):
+    return [c for c in joined(commands) if c.startswith(prefix)]
 
 
 def test_shellcheck_and_syntax():
@@ -116,22 +116,22 @@ def test_shellcheck_and_syntax():
 
 @pytest.mark.parametrize("script", ["deploy.sh", "deploy_code_arm.sh", "package.sh"])
 def test_help(script, fake_az):
-    result, calls = fake_az(script, "--help")
+    result, commands = fake_az(script, "--help")
     assert result.returncode == 0
     assert "Usage" in result.stdout or "Deployment/scripts/" in result.stdout
-    assert calls == []
+    assert commands == []
 
 
 def test_demo_deployment_uses_management_api_only(fake_az):
-    result, calls = fake_az("deploy.sh", "-e", "demo", "--param", "demoPassword=s3cret-Pass")
+    result, commands = fake_az("deploy.sh", "-e", "demo", "--param", "demoPassword=s3cret-Pass")
     assert result.returncode == 0, result.stderr
-    cmds = joined(calls)
+    cmds = joined(commands)
     # Existing resource group reused, never created.
-    assert not find(calls, "group create")
+    assert not find(commands, "group create")
     # The shared plan is looked up by name from demo.env and passed by ID; nothing changes the plan.
-    assert find(calls, "appservice plan show -g Vaibhav.Chaudhary -n ccai-demo-gqausd-web-plan --query id -o tsv")
+    assert find(commands, "appservice plan show -g Vaibhav.Chaudhary -n ccai-demo-gqausd-web-plan --query id -o tsv")
     assert not [c for c in cmds if c.startswith(("appservice plan update", "appservice plan create"))]
-    create = find(calls, "deployment group create")[0]
+    create = find(commands, "deployment group create")[0]
     assert "-n advancesearch-demo" in create
     assert "@" + str(REPO / "Deployment/ARM/parameters/demo.parameters.json") in create
     assert f"deployerPrincipalId={OID}" in create and "deployerPrincipalType=User" in create
@@ -140,19 +140,19 @@ def test_demo_deployment_uses_management_api_only(fake_az):
     assert "demoPassword=s3cret-Pass" in create
     # Code step after the infrastructure step.
     i_create = cmds.index(create)
-    settings = find(calls, "webapp config appsettings set")[0]
+    settings = find(commands, "webapp config appsettings set")[0]
     assert cmds.index(settings) > i_create
     assert "WEBSITE_RUN_FROM_PACKAGE=https://asrchdemoabc123st.blob.core.windows.net/code-packages/webapp-" in settings
     assert "SCM_DO_BUILD_DURING_DEPLOYMENT=false" in settings and "PYTHONPATH=/home/site/wwwroot/.packages" in settings
-    startup = find(calls, "webapp config set")[0]
+    startup = find(commands, "webapp config set")[0]
     assert "--workers 1 --threads 4" in startup and "python -m gunicorn" in startup
-    sas = find(calls, "storage blob generate-sas")[0]
+    sas = find(commands, "storage blob generate-sas")[0]
     assert "--permissions r" in sas and "--https-only" in sas and "--account-key ZmFrZWtleQ==" in sas
     # demo.env sets SEED=1: the sample documents are uploaded with the account key, before the restart.
-    seeds = [c for c in find(calls, "storage blob upload") if "-c documents" in c]
+    seeds = [c for c in find(commands, "storage blob upload") if "-c documents" in c]
     assert len(seeds) == 13
-    assert all("--account-key" in c for c in find(calls, "storage blob upload"))
-    assert cmds.index(find(calls, "webapp restart")[0]) > cmds.index(seeds[-1])
+    assert all("--account-key" in c for c in find(commands, "storage blob upload"))
+    assert cmds.index(find(commands, "webapp restart")[0]) > cmds.index(seeds[-1])
     # Never uses data-plane tokens, Kudu or Graph.
     forbidden = ("ad ", "webapp deploy", "functionapp", "keyvault secret", "webapp up")
     assert not [c for c in cmds if c.startswith(forbidden) or "--auth-mode login" in c]
@@ -161,65 +161,65 @@ def test_demo_deployment_uses_management_api_only(fake_az):
 
 
 def test_missing_shared_plan_stops_before_deploying(fake_az):
-    result, calls = fake_az("deploy.sh", "-e", "demo", FAKE_AZ_FAIL="appservice plan show")
+    result, commands = fake_az("deploy.sh", "-e", "demo", FAKE_AZ_FAIL="appservice plan show")
     assert result.returncode == 1
     assert "App Service plan 'ccai-demo-gqausd-web-plan' was not found" in result.stderr
-    assert not find(calls, "deployment group create")
+    assert not find(commands, "deployment group create")
 
 
 def test_unregistered_providers_are_registered(fake_az):
-    result, calls = fake_az("deploy.sh", "-e", "demo", FAKE_AZ_UNREGISTERED="Microsoft.Search,Microsoft.Insights")
+    result, commands = fake_az("deploy.sh", "-e", "demo", FAKE_AZ_UNREGISTERED="Microsoft.Search,Microsoft.Insights")
     assert result.returncode == 0, result.stderr
-    assert find(calls, "provider register -n Microsoft.Search --wait")
-    assert find(calls, "provider register -n Microsoft.Insights --wait")
-    assert not find(calls, "provider register -n Microsoft.Web")
-    assert not [c for c in joined(calls) if "Microsoft.Network" in c]  # only checked for private networking
+    assert find(commands, "provider register -n Microsoft.Search --wait")
+    assert find(commands, "provider register -n Microsoft.Insights --wait")
+    assert not find(commands, "provider register -n Microsoft.Web")
+    assert not [c for c in joined(commands) if "Microsoft.Network" in c]  # only checked for private networking
 
 
 def test_failed_provider_registration_warns_and_continues(fake_az):
-    result, calls = fake_az("deploy.sh", "-e", "demo", FAKE_AZ_UNREGISTERED="Microsoft.Search",
+    result, commands = fake_az("deploy.sh", "-e", "demo", FAKE_AZ_UNREGISTERED="Microsoft.Search",
                             FAKE_AZ_FAIL="provider register")
     assert result.returncode == 0
     assert "could not be registered: Microsoft.Search" in result.stderr
     assert "az provider register -n <namespace> --wait" in result.stderr
-    assert find(calls, "deployment group create")
+    assert find(commands, "deployment group create")
 
 
 def test_private_networking_checks_network_provider(fake_az):
-    result, calls = fake_az("deploy.sh", "-e", "prod", "-g", "rg-prod")
+    result, commands = fake_az("deploy.sh", "-e", "prod", "-g", "rg-prod")
     assert result.returncode == 0, result.stderr
-    assert find(calls, "provider show -n Microsoft.Network")
-    assert not find(calls, "appservice plan show")  # prod creates its own plan
-    assert "existingAppServicePlanId" not in find(calls, "deployment group create")[0]
+    assert find(commands, "provider show -n Microsoft.Network")
+    assert not find(commands, "appservice plan show")  # prod creates its own plan
+    assert "existingAppServicePlanId" not in find(commands, "deployment group create")[0]
 
 
 def test_new_resource_group_is_created_when_missing(fake_az):
-    result, calls = fake_az("deploy.sh", "-e", "dev", "-g", "rg-new", "-l", "southindia", FAKE_AZ_GROUP_EXISTS="false")
+    result, commands = fake_az("deploy.sh", "-e", "dev", "-g", "rg-new", "-l", "southindia", FAKE_AZ_GROUP_EXISTS="false")
     assert result.returncode == 0, result.stderr
-    assert find(calls, "group create -n rg-new -l southindia")
-    assert not [c for c in find(calls, "storage blob upload") if "-c documents" in c]  # dev: no seed by default
+    assert find(commands, "group create -n rg-new -l southindia")
+    assert not [c for c in find(commands, "storage blob upload") if "-c documents" in c]  # dev: no seed by default
 
 
 def test_skip_infra_only_deploys_code(fake_az):
-    result, calls = fake_az("deploy.sh", "-e", "demo", "--skip-infra", "--no-seed")
+    result, commands = fake_az("deploy.sh", "-e", "demo", "--skip-infra", "--no-seed")
     assert result.returncode == 0, result.stderr
-    assert not find(calls, "deployment group create")
-    assert not find(calls, "provider")
-    assert find(calls, "webapp config appsettings set")
-    assert not [c for c in find(calls, "storage blob upload") if "-c documents" in c]
+    assert not find(commands, "deployment group create")
+    assert not find(commands, "provider")
+    assert find(commands, "webapp config appsettings set")
+    assert not [c for c in find(commands, "storage blob upload") if "-c documents" in c]
 
 
 def test_skip_code_warns(fake_az):
-    result, calls = fake_az("deploy.sh", "-e", "demo", "--skip-code")
+    result, commands = fake_az("deploy.sh", "-e", "demo", "--skip-code")
     assert result.returncode == 0
     assert "has no code package" in result.stderr
-    assert find(calls, "deployment group create")
-    assert not find(calls, "webapp config appsettings set")
+    assert find(commands, "deployment group create")
+    assert not find(commands, "webapp config appsettings set")
 
 
 def test_service_principal_deployer(fake_az):
-    result, calls = fake_az("deploy.sh", "-e", "demo", "--skip-code", FAKE_AZ_USER_TYPE="servicePrincipal")
-    assert "deployerPrincipalType=ServicePrincipal" in find(calls, "deployment group create")[0]
+    result, commands = fake_az("deploy.sh", "-e", "demo", "--skip-code", FAKE_AZ_USER_TYPE="servicePrincipal")
+    assert "deployerPrincipalType=ServicePrincipal" in find(commands, "deployment group create")[0]
 
 
 @pytest.mark.parametrize("args,message", [
@@ -227,35 +227,35 @@ def test_service_principal_deployer(fake_az):
     (["-e", "demo", "--bogus"], "Unknown option"),
 ])
 def test_argument_errors(fake_az, args, message):
-    result, calls = fake_az("deploy.sh", *args)
+    result, commands = fake_az("deploy.sh", *args)
     assert result.returncode == 1
     assert message in result.stderr
-    assert not find(calls, "deployment group create")
+    assert not find(commands, "deployment group create")
 
 
 def test_code_step_without_infrastructure_outputs(fake_az):
-    result, calls = fake_az("deploy_code_arm.sh", "-g", "rg", "-e", "demo", FAKE_AZ_NO_OUTPUTS="1")
+    result, commands = fake_az("deploy_code_arm.sh", "-g", "rg", "-e", "demo", FAKE_AZ_NO_OUTPUTS="1")
     assert result.returncode == 1
     assert "Run the infrastructure step first" in result.stderr
 
 
 def test_code_step_without_shared_key_access(fake_az):
-    result, calls = fake_az("deploy_code_arm.sh", "-g", "rg", "-e", "demo", FAKE_AZ_FAIL="storage account keys list")
+    result, commands = fake_az("deploy_code_arm.sh", "-g", "rg", "-e", "demo", FAKE_AZ_FAIL="storage account keys list")
     assert result.returncode == 1
     assert "allowSharedKeyAccess=true" in result.stderr
-    assert not find(calls, "webapp config appsettings set")
+    assert not find(commands, "webapp config appsettings set")
 
 
 def test_seed_only(fake_az):
-    result, calls = fake_az("deploy_code_arm.sh", "-g", "rg", "-e", "demo", "--seed-only")
+    result, commands = fake_az("deploy_code_arm.sh", "-g", "rg", "-e", "demo", "--seed-only")
     assert result.returncode == 0, result.stderr
-    assert not find(calls, "webapp config appsettings set")
-    uploads = [c for c in find(calls, "storage blob upload") if "-c documents" in c]
+    assert not find(commands, "webapp config appsettings set")
+    uploads = [c for c in find(commands, "storage blob upload") if "-c documents" in c]
     assert len(uploads) == 13 and not [c for c in uploads if "queries.yaml" in c or "generate.py" in c]
-    assert find(calls, "webapp restart")
+    assert find(commands, "webapp restart")
 
 
 def test_failed_deployment_stops_the_script(fake_az):
-    result, calls = fake_az("deploy.sh", "-e", "demo", FAKE_AZ_FAIL="deployment group create")
+    result, commands = fake_az("deploy.sh", "-e", "demo", FAKE_AZ_FAIL="deployment group create")
     assert result.returncode != 0
-    assert not find(calls, "webapp config appsettings set")
+    assert not find(commands, "webapp config appsettings set")

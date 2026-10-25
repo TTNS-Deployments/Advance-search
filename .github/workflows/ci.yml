@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            Code/webapp/requirements.txt
+
+      - name: Install
+        run: pip install -r requirements-dev.txt
+
+      - name: Repository checks (JSON, Markdown links, wording, committed files)
+        run: python qa/check_repo.py
+
+      - name: Shell scripts (shellcheck, bash -n)
+        run: |
+          shellcheck Deployment/scripts/*.sh
+          for f in Deployment/scripts/*.sh; do bash -n "$f"; done
+
+      - name: Core tests (extraction, search, ingestion, deployment consistency, scripts with a fake az)
+        run: python -m pytest Code/core -q
+
+      - name: Web app tests
+        working-directory: Code/webapp
+        run: |
+          python manage.py check
+          python manage.py test
+
+      - name: UI tests (Playwright, headless Chromium, local mode)
+        run: |
+          python -m playwright install --with-deps chromium
+          python -m pytest qa/tests -q
+
+      - name: Validate ARM template (the Bicep source compiles and matches the committed azuredeploy.json)
+        run: |
+          az bicep install
+          az bicep build --file Deployment/ARM/azuredeploy.bicep --stdout > "$RUNNER_TEMP/built.json"
+          python - "$RUNNER_TEMP/built.json" Deployment/ARM/azuredeploy.json <<'PY'
+          import json, sys
+          def load(p):
+              t = json.load(open(p))
+              t.get("metadata", {}).pop("_generator", None)
+              return t
+          assert load(sys.argv[1]) == load(sys.argv[2]), "azuredeploy.json is out of date: rebuild it from azuredeploy.bicep"
+          PY
+          az bicep lint --file Deployment/ARM/azuredeploy.bicep
+
+      - name: Build package (all libraries included)
+        run: Deployment/scripts/package.sh --vendor
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: webapp-package
+          path: build/webapp.zip
+          retention-days: 7

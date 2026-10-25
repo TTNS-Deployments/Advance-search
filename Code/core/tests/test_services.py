@@ -94,10 +94,10 @@ class FakeResponse:
 
 class FakeSession:
     def __init__(self, responses):
-        self.responses, self.calls = list(responses), []
+        self.responses, self.requests = list(responses), []
 
     def post(self, url, json=None, headers=None, timeout=None):
-        self.calls.append({"url": url, "json": json, "headers": headers})
+        self.requests.append({"url": url, "json": json, "headers": headers})
         item = self.responses.pop(0)
         if isinstance(item, Exception):
             raise item
@@ -123,7 +123,7 @@ def test_azure_embeddings_retry_on_429_and_5xx():
     vectors = client.embed(["a", "b"])
     assert vectors == [[0.0, 0.2, 0.3], [0.1, 0.2, 0.3]]  # ordered by index
     assert sleeps[0] == 2.0 and len(sleeps) == 3
-    call = session.calls[0]
+    call = session.requests[0]
     assert "/openai/deployments/text-embedding-3-small/embeddings?api-version=2024-10-21" in call["url"]
     assert call["json"] == {"input": ["a", "b"], "dimensions": 3}
     assert call["headers"] == {"api-key": "k"}
@@ -133,7 +133,7 @@ def test_azure_embeddings_do_not_retry_client_errors():
     session = FakeSession([FakeResponse(400, {"error": "bad"})])
     with pytest.raises(EmbeddingError, match="HTTP 400"):
         AzureOpenAIEmbeddings(_azure_settings(), session=session, sleep=lambda s: None).embed(["a"])
-    assert len(session.calls) == 1
+    assert len(session.requests) == 1
 
 
 def test_azure_embeddings_give_up_after_max_attempts():
@@ -153,12 +153,12 @@ def test_azure_embeddings_check_dimensions():
 class FakeSearchClient:
     def __init__(self, hybrid_rows, vector_rows=None, fail_semantic=False):
         self.hybrid_rows, self.vector_rows, self.fail_semantic = hybrid_rows, vector_rows or [], fail_semantic
-        self.calls, self.deleted, self.uploaded = [], [], []
+        self.requests, self.deleted, self.uploaded = [], [], []
 
     def search(self, **kwargs):
         from azure.core.exceptions import HttpResponseError
 
-        self.calls.append(kwargs)
+        self.requests.append(kwargs)
         if kwargs.get("filter"):
             return [{"id": "d1-00000"}, {"id": "d1-00001"}] if not self.deleted else []
         if kwargs.get("search_text") is None:
@@ -217,10 +217,10 @@ def test_azure_search_uses_reranker_scores(azure_index):
     azure_index.client = FakeSearchClient([_row(1, reranker=3.1), _row(2, reranker=1.0)])
     hits = azure_index.search("leave", [0.1, 0.2, 0.3], 50)
     assert [h.reranker_score for h in hits] == [3.1, 1.0]
-    call = azure_index.client.calls[0]
+    call = azure_index.client.requests[0]
     assert call["query_type"] == "semantic" and call["top"] == 50
     assert call["vector_queries"][0].k_nearest_neighbors == 50
-    assert len(azure_index.client.calls) == 1  # no extra vector query needed
+    assert len(azure_index.client.requests) == 1  # no extra vector query needed
 
 
 def test_azure_search_falls_back_to_cosine_without_reranker(azure_index):
@@ -237,15 +237,15 @@ def test_azure_search_retries_without_semantic_when_disabled(azure_index):
                                           fail_semantic=True)
     hits = azure_index.search("leave", [0.1, 0.2, 0.3], 50)
     assert hits[0].reranker_score is None and hits[0].cosine is not None
-    assert "query_type" not in azure_index.client.calls[1]
+    assert "query_type" not in azure_index.client.requests[1]
     azure_index.search("leave", [0.1, 0.2, 0.3], 50)  # remembered: no semantic attempt for a while
-    assert all(c.get("query_type") != "semantic" for c in azure_index.client.calls[2:])
+    assert all(c.get("query_type") != "semantic" for c in azure_index.client.requests[2:])
 
 
 def test_azure_delete_document_filters_on_doc_id(azure_index):
     azure_index.client = FakeSearchClient([])
     assert azure_index.delete_document("d1") == 2
-    assert azure_index.client.calls[0]["filter"] == "docId eq 'd1'"
+    assert azure_index.client.requests[0]["filter"] == "docId eq 'd1'"
     with pytest.raises(ValueError):
         azure_index.delete_document("x' or true or '")
 

@@ -11,7 +11,7 @@ PUBLIC_PREFIXES = ("/auth/", "/static/", "/healthz", "/favicon.ico", "/robots")
 class AuthenticationMiddleware:
     """Puts ``request.user`` on every request and sends anonymous users to sign in.
 
-    API calls (``/api/``) get a JSON 401 instead of a redirect; htmx requests get an ``HX-Redirect``.
+    API requests (``/api/``) get a JSON 401 instead of a redirect; htmx requests get an ``HX-Redirect``.
     """
 
     def __init__(self, get_response):
