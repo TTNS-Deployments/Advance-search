@@ -1,0 +1,97 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "solutionPrefix": {
+      "value": "asrch"
+    },
+    "location": {
+      "value": "centralindia"
+    },
+    "openAiLocation": {
+      "value": "southindia"
+    },
+    "embeddingModelName": {
+      "value": "text-embedding-3-small"
+    },
+    "embeddingModelVersion": {
+      "value": "1"
+    },
+    "embeddingDeploymentSku": {
+      "value": "GlobalStandard"
+    },
+    "embeddingDimensions": {
+      "value": 1536
+    },
+    "openAiApiVersion": {
+      "value": "2024-10-21"
+    },
+    "searchIndexName": {
+      "value": "advance-search"
+    },
+    "maxUploadMb": {
+      "value": 20
+    },
+    "displayTimeZone": {
+      "value": "Asia/Kolkata"
+    },
+    "authMode": {
+      "value": "password"
+    },
+    "keyVaultSku": {
+      "value": "standard"
+    },
+    "environmentName": {
+      "value": "dev"
+    },
+    "storageSku": {
+      "value": "Standard_LRS"
+    },
+    "allowSharedKeyAccess": {
+      "value": true
+    },
+    "blobSoftDeleteDays": {
+      "value": 7
+    },
+    "logAnalyticsRetentionDays": {
+      "value": 30
+    },
+    "logAnalyticsDailyQuotaGb": {
+      "value": 1
+    },
+    "embeddingCapacity": {
+      "value": 10
+    },
+    "searchSku": {
+      "value": "basic"
+    },
+    "searchReplicas": {
+      "value": 1
+    },
+    "searchPartitions": {
+      "value": 1
+    },
+    "searchSemanticSearch": {
+      "value": "free"
+    },
+    "existingAppServicePlanId": {
+      "value": ""
+    },
+    "webAppSku": {
+      "value": "B1"
+    },
+    "webAppInstanceCount": {
+      "value": 1
+    },
+    "privateNetworking": {
+      "value": false
+    },
+    "tags": {
+      "value": {
+        "owner": "TTNS",
+        "project": "advance-search",
+        "purpose": "dev"
+      }
+    }
+  }
+}

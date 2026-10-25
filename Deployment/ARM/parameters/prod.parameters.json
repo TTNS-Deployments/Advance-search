@@ -1,0 +1,106 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "solutionPrefix": {
+      "value": "asrch"
+    },
+    "location": {
+      "value": "centralindia"
+    },
+    "openAiLocation": {
+      "value": "southindia"
+    },
+    "embeddingModelName": {
+      "value": "text-embedding-3-small"
+    },
+    "embeddingModelVersion": {
+      "value": "1"
+    },
+    "embeddingDeploymentSku": {
+      "value": "GlobalStandard"
+    },
+    "embeddingDimensions": {
+      "value": 1536
+    },
+    "openAiApiVersion": {
+      "value": "2024-10-21"
+    },
+    "searchIndexName": {
+      "value": "advance-search"
+    },
+    "maxUploadMb": {
+      "value": 20
+    },
+    "displayTimeZone": {
+      "value": "Asia/Kolkata"
+    },
+    "authMode": {
+      "value": "password"
+    },
+    "keyVaultSku": {
+      "value": "standard"
+    },
+    "environmentName": {
+      "value": "prod"
+    },
+    "storageSku": {
+      "value": "Standard_ZRS"
+    },
+    "allowSharedKeyAccess": {
+      "value": false
+    },
+    "blobSoftDeleteDays": {
+      "value": 30
+    },
+    "logAnalyticsRetentionDays": {
+      "value": 90
+    },
+    "logAnalyticsDailyQuotaGb": {
+      "value": -1
+    },
+    "embeddingCapacity": {
+      "value": 50
+    },
+    "searchSku": {
+      "value": "standard"
+    },
+    "searchReplicas": {
+      "value": 2
+    },
+    "searchPartitions": {
+      "value": 1
+    },
+    "searchSemanticSearch": {
+      "value": "standard"
+    },
+    "existingAppServicePlanId": {
+      "value": ""
+    },
+    "webAppSku": {
+      "value": "P0v3"
+    },
+    "webAppInstanceCount": {
+      "value": 2
+    },
+    "privateNetworking": {
+      "value": true
+    },
+    "vnetAddressPrefix": {
+      "value": "10.60.0.0/16"
+    },
+    "appSubnetPrefix": {
+      "value": "10.60.1.0/24"
+    },
+    "privateEndpointSubnetPrefix": {
+      "value": "10.60.2.0/24"
+    },
+    "tags": {
+      "value": {
+        "owner": "TTNS",
+        "project": "advance-search",
+        "purpose": "production"
+      }
+    }
+  }
+}

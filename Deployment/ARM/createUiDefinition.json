@@ -1,0 +1,615 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": false,
+      "basics": {
+        "description": "**Advance Search** makes PDF, Word and Excel documents searchable by meaning. It deploys a web app, Blob Storage, an Azure OpenAI embedding model, Azure AI Search, Key Vault and monitoring. Choose the tier (SKU) of every service on the following tabs. The application code is deployed afterwards with Deployment/scripts/deploy.sh."
+      }
+    },
+    "basics": [
+      {
+        "name": "solutionPrefix",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Solution prefix",
+        "defaultValue": "asrch",
+        "toolTip": "Used in all resource names.",
+        "constraints": {
+          "required": true,
+          "regex": "^[a-z0-9]{3,8}$",
+          "validationMessage": "3-8 lowercase letters or digits."
+        },
+        "visible": true
+      },
+      {
+        "name": "environmentName",
+        "type": "Microsoft.Common.DropDown",
+        "label": "Environment",
+        "defaultValue": "dev",
+        "toolTip": "",
+        "constraints": {
+          "allowedValues": [
+            {
+              "label": "Demo",
+              "value": "demo"
+            },
+            {
+              "label": "Development",
+              "value": "dev"
+            },
+            {
+              "label": "Test",
+              "value": "test"
+            },
+            {
+              "label": "UAT",
+              "value": "uat"
+            },
+            {
+              "label": "Production",
+              "value": "prod"
+            }
+          ],
+          "required": true
+        },
+        "visible": true
+      }
+    ],
+    "steps": [
+      {
+        "name": "storage",
+        "label": "Storage",
+        "elements": [
+          {
+            "name": "storageSku",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Redundancy",
+            "defaultValue": "Standard_LRS",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "Locally redundant (LRS)",
+                  "value": "Standard_LRS"
+                },
+                {
+                  "label": "Zone redundant (ZRS)",
+                  "value": "Standard_ZRS"
+                },
+                {
+                  "label": "Geo redundant (GRS)",
+                  "value": "Standard_GRS"
+                },
+                {
+                  "label": "Read-access geo redundant (RA-GRS)",
+                  "value": "Standard_RAGRS"
+                },
+                {
+                  "label": "Geo-zone redundant (GZRS)",
+                  "value": "Standard_GZRS"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "allowSharedKeyAccess",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Allow account keys",
+            "defaultValue": "true",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "Yes (needed by deploy_code_arm.sh)",
+                  "value": "true"
+                },
+                {
+                  "label": "No (identity-based access only)",
+                  "value": "false"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          }
+        ]
+      },
+      {
+        "name": "ai",
+        "label": "Embeddings",
+        "elements": [
+          {
+            "name": "openAiLocation",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Azure OpenAI region",
+            "defaultValue": "southindia",
+            "toolTip": "Must offer the embedding model with quota in your subscription.",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "South India",
+                  "value": "southindia"
+                },
+                {
+                  "label": "Central India",
+                  "value": "centralindia"
+                },
+                {
+                  "label": "East US",
+                  "value": "eastus"
+                },
+                {
+                  "label": "East US 2",
+                  "value": "eastus2"
+                },
+                {
+                  "label": "Sweden Central",
+                  "value": "swedencentral"
+                },
+                {
+                  "label": "West Europe",
+                  "value": "westeurope"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "embeddingModelName",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Embedding model",
+            "defaultValue": "text-embedding-3-small",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "text-embedding-3-small (1536 dimensions)",
+                  "value": "text-embedding-3-small"
+                },
+                {
+                  "label": "text-embedding-3-large (3072 dimensions)",
+                  "value": "text-embedding-3-large"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "embeddingDimensions",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Vector dimensions",
+            "defaultValue": "1536",
+            "toolTip": "Must match the model; changing it later needs an index rebuild.",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "1536",
+                  "value": "1536"
+                },
+                {
+                  "label": "3072 (text-embedding-3-large only)",
+                  "value": "3072"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "embeddingDeploymentSku",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Deployment type",
+            "defaultValue": "GlobalStandard",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "Global Standard",
+                  "value": "GlobalStandard"
+                },
+                {
+                  "label": "Standard (in region)",
+                  "value": "Standard"
+                },
+                {
+                  "label": "Data Zone Standard",
+                  "value": "DataZoneStandard"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "embeddingCapacity",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Capacity (thousand tokens per minute)",
+            "defaultValue": "10",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "10K TPM",
+                  "value": "10"
+                },
+                {
+                  "label": "20K TPM",
+                  "value": "20"
+                },
+                {
+                  "label": "50K TPM",
+                  "value": "50"
+                },
+                {
+                  "label": "100K TPM",
+                  "value": "100"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          }
+        ]
+      },
+      {
+        "name": "search",
+        "label": "AI Search",
+        "elements": [
+          {
+            "name": "searchSku",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Search tier",
+            "defaultValue": "basic",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "Free (one per subscription, no semantic ranker)",
+                  "value": "free"
+                },
+                {
+                  "label": "Basic",
+                  "value": "basic"
+                },
+                {
+                  "label": "Standard (S1)",
+                  "value": "standard"
+                },
+                {
+                  "label": "Standard S2",
+                  "value": "standard2"
+                },
+                {
+                  "label": "Standard S3",
+                  "value": "standard3"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "searchReplicas",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Replicas",
+            "defaultValue": "1",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "1",
+                  "value": "1"
+                },
+                {
+                  "label": "2",
+                  "value": "2"
+                },
+                {
+                  "label": "3",
+                  "value": "3"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "searchPartitions",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Partitions",
+            "defaultValue": "1",
+            "toolTip": "Free and Basic allow 1.",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "1",
+                  "value": "1"
+                },
+                {
+                  "label": "2",
+                  "value": "2"
+                },
+                {
+                  "label": "3",
+                  "value": "3"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "searchSemanticSearch",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Semantic ranker",
+            "defaultValue": "free",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "Free plan (1,000 queries per month)",
+                  "value": "free"
+                },
+                {
+                  "label": "Standard (pay per query)",
+                  "value": "standard"
+                },
+                {
+                  "label": "Disabled",
+                  "value": "disabled"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          }
+        ]
+      },
+      {
+        "name": "web",
+        "label": "Web app",
+        "elements": [
+          {
+            "name": "existingAppServicePlanId",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Existing App Service plan resource ID (optional)",
+            "defaultValue": "",
+            "toolTip": "Leave empty to create a new plan. An existing Linux plan in the same region is used as is and never modified.",
+            "constraints": {
+              "required": false
+            },
+            "visible": true
+          },
+          {
+            "name": "webAppSku",
+            "type": "Microsoft.Common.DropDown",
+            "label": "New plan SKU",
+            "defaultValue": "B1",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "B1",
+                  "value": "B1"
+                },
+                {
+                  "label": "B2",
+                  "value": "B2"
+                },
+                {
+                  "label": "B3",
+                  "value": "B3"
+                },
+                {
+                  "label": "S1",
+                  "value": "S1"
+                },
+                {
+                  "label": "S2",
+                  "value": "S2"
+                },
+                {
+                  "label": "S3",
+                  "value": "S3"
+                },
+                {
+                  "label": "P0v3",
+                  "value": "P0v3"
+                },
+                {
+                  "label": "P1v3",
+                  "value": "P1v3"
+                },
+                {
+                  "label": "P2v3",
+                  "value": "P2v3"
+                },
+                {
+                  "label": "P3v3",
+                  "value": "P3v3"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "webAppInstanceCount",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Instances",
+            "defaultValue": "1",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "1",
+                  "value": "1"
+                },
+                {
+                  "label": "2",
+                  "value": "2"
+                },
+                {
+                  "label": "3",
+                  "value": "3"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "demoPassword",
+            "type": "Microsoft.Common.PasswordBox",
+            "label": {
+              "password": "Demo password",
+              "confirmPassword": "Confirm demo password"
+            },
+            "toolTip": "Shared password for the demo sign-in, stored in Key Vault.",
+            "constraints": {
+              "required": true,
+              "regex": "^.{8,}$",
+              "validationMessage": "At least 8 characters."
+            },
+            "options": {
+              "hideConfirmation": false
+            },
+            "visible": true
+          }
+        ]
+      },
+      {
+        "name": "operations",
+        "label": "Monitoring and network",
+        "elements": [
+          {
+            "name": "logAnalyticsRetentionDays",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Log retention (days)",
+            "defaultValue": "30",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "30",
+                  "value": "30"
+                },
+                {
+                  "label": "90",
+                  "value": "90"
+                },
+                {
+                  "label": "180",
+                  "value": "180"
+                },
+                {
+                  "label": "365",
+                  "value": "365"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "logAnalyticsDailyQuotaGb",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Daily log cap (GB)",
+            "defaultValue": "1",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "1 GB",
+                  "value": "1"
+                },
+                {
+                  "label": "5 GB",
+                  "value": "5"
+                },
+                {
+                  "label": "No cap",
+                  "value": "-1"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "keyVaultSku",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Key Vault tier",
+            "defaultValue": "standard",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "Standard",
+                  "value": "standard"
+                },
+                {
+                  "label": "Premium",
+                  "value": "premium"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "privateNetworking",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Private networking",
+            "defaultValue": "false",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "Off (public endpoints)",
+                  "value": "false"
+                },
+                {
+                  "label": "On (private endpoints; not on the Free search tier)",
+                  "value": "true"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "location": "[location()]",
+      "solutionPrefix": "[basics('solutionPrefix')]",
+      "environmentName": "[basics('environmentName')]",
+      "storageSku": "[steps('storage').storageSku]",
+      "allowSharedKeyAccess": "[bool(steps('storage').allowSharedKeyAccess)]",
+      "openAiLocation": "[steps('ai').openAiLocation]",
+      "embeddingModelName": "[steps('ai').embeddingModelName]",
+      "embeddingDimensions": "[int(steps('ai').embeddingDimensions)]",
+      "embeddingDeploymentSku": "[steps('ai').embeddingDeploymentSku]",
+      "embeddingCapacity": "[int(steps('ai').embeddingCapacity)]",
+      "searchSku": "[steps('search').searchSku]",
+      "searchReplicas": "[int(steps('search').searchReplicas)]",
+      "searchPartitions": "[int(steps('search').searchPartitions)]",
+      "searchSemanticSearch": "[steps('search').searchSemanticSearch]",
+      "existingAppServicePlanId": "[steps('web').existingAppServicePlanId]",
+      "webAppSku": "[steps('web').webAppSku]",
+      "webAppInstanceCount": "[int(steps('web').webAppInstanceCount)]",
+      "demoPassword": "[steps('web').demoPassword]",
+      "logAnalyticsRetentionDays": "[int(steps('operations').logAnalyticsRetentionDays)]",
+      "logAnalyticsDailyQuotaGb": "[int(steps('operations').logAnalyticsDailyQuotaGb)]",
+      "keyVaultSku": "[steps('operations').keyVaultSku]",
+      "privateNetworking": "[bool(steps('operations').privateNetworking)]"
+    }
+  }
+}
