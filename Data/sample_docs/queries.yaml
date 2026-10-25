@@ -1,0 +1,63 @@
+# Evaluation queries for the sample documents. The expected document must be in the top 3 for every query
+# (Code/core/tests/test_search_quality.py, and `python -m advancesearch eval`).
+#   kind: keyword    - shares words with the document
+#         paraphrase - describes the need in other words (little or no word overlap)
+#         excel      - the answer is a row in a spreadsheet
+queries:
+  - query: how many days off do I get
+    expected: Leave-Policy-2026.pdf
+    kind: paraphrase
+  - query: maternity leave entitlement
+    expected: Leave-Policy-2026.pdf
+    kind: keyword
+  - query: what to do if my laptop is stolen
+    expected: Information-Security-Policy.docx
+    kind: paraphrase
+  - query: my notebook computer went missing on the train
+    expected: Information-Security-Policy.docx
+    kind: paraphrase
+  - query: how do I set up multi factor authentication
+    expected: Information-Security-Policy.docx
+    kind: keyword
+  - query: who approves a purchase over five lakh
+    expected: Procurement-Approval-Matrix.xlsx
+    kind: excel
+  - query: how do I get my money back after a business trip
+    expected: Travel-and-Expense-Policy.pdf
+    kind: paraphrase
+  - query: hotel limit per night in metro cities
+    expected: Travel-and-Expense-Policy.pdf
+    kind: keyword
+  - query: marketing budget for the third quarter
+    expected: FY2026-Budget-Summary.xlsx
+    kind: excel
+  - query: what happens during my first week
+    expected: New-Joiner-Onboarding-Guide.docx
+    kind: keyword
+  - query: battery life of the field tablet
+    expected: FT-200-Field-Tablet-Specification.pdf
+    kind: keyword
+  - query: how long does the device last on one charge
+    expected: FT-200-Field-Tablet-Specification.pdf
+    kind: paraphrase
+  - query: can the meter tell if someone interferes with it
+    expected: SM-3-Smart-Meter-Datasheet.docx
+    kind: paraphrase
+  - query: when does the migration go live
+    expected: Cloud-Migration-Project-Plan.xlsx
+    kind: excel
+  - query: biggest risks of moving to the cloud and how we handle them
+    expected: Cloud-Migration-Project-Plan.xlsx
+    kind: excel
+  - query: how long are invoices kept
+    expected: Records-Retention-Schedule.pdf
+    kind: keyword
+  - query: when can old security camera recordings be thrown away
+    expected: Records-Retention-Schedule.pdf
+    kind: paraphrase
+  - query: can I work from home on Fridays
+    expected: Hybrid-Working-Guidelines.docx
+    kind: paraphrase
+  - query: price of a box of A4 paper
+    expected: Supplier-Price-List-2026.xlsx
+    kind: excel
