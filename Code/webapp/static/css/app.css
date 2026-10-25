@@ -266,7 +266,7 @@ img, svg { max-width: 100%; }
 .search-box input:focus-visible { box-shadow: none; }
 .kbd-hint { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); border: 1px solid var(--border-strong); border-bottom-width: 2px;
   border-radius: 6px; padding: 1px 7px; }
-.search-box:focus-within .kbd-hint { display: none; }
+.search-box:focus-within .kbd-hint { visibility: hidden; }
 .search-submit { height: 48px; padding: 0 22px; border-radius: 12px; }
 
 .suggestions { max-width: 820px; margin: 18px auto 0; display: grid; gap: 10px; }
@@ -444,7 +444,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { border-color
 .toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .toolbar-actions form { margin: 0; }
 .summary-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 0.88rem; color: var(--muted); margin-bottom: 10px; }
-.table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+.table-scroll { position: relative; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
 .doc-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 760px; }
 .doc-table th { text-align: left; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
   background: var(--surface-2); padding: 10px 12px; font-weight: 700; border-bottom: 1px solid var(--border); }
