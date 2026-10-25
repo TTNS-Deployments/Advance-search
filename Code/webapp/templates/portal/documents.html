@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load portal_tags %}
+{% block title %}Documents · Advance Search{% endblock %}
+{% block body_class %}page-documents{% endblock %}
+{% block content %}
+<div class="container page">
+  <header class="page-head">
+    <div>
+      <h1>Documents</h1>
+      <p class="muted">Upload, re-index and remove the documents people can search.</p>
+    </div>
+  </header>
+
+  {% if warning %}
+  <div class="alert alert-warning" role="alert">{% icon 'alert' 18 %}<span>{{ warning }}</span></div>
+  {% endif %}
+
+  <section class="card upload-card" aria-labelledby="upload-title">
+    <h2 id="upload-title" class="visually-hidden">Upload documents</h2>
+    <form id="upload-form" class="dropzone" method="post" action="{% url 'portal:upload' %}" enctype="multipart/form-data"
+          data-max-mb="{{ max_upload_mb }}">
+      {% csrf_token %}
+      <div class="dropzone-inner">
+        <span class="dropzone-icon">{% icon 'upload' 30 %}</span>
+        <p class="dropzone-title"><strong>Drag files here</strong> or
+          <label for="file-input" class="link-btn">browse<span class="visually-hidden"> for files to upload</span></label></p>
+        <p class="dropzone-help" id="upload-help">PDF, Word (.docx) and Excel (.xlsx), up to {{ max_upload_mb }} MB each. Text-based PDFs only: scanned pages have no searchable text.</p>
+        <input id="file-input" class="visually-hidden-input" type="file" name="file" multiple
+               accept=".pdf,.docx,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+               aria-describedby="upload-help">
+        <noscript><button type="submit" class="btn btn-primary">Upload</button></noscript>
+      </div>
+    </form>
+    <ul id="upload-list" class="upload-list" aria-live="polite"></ul>
+  </section>
+
+  <section class="card" aria-labelledby="library-title">
+    <div class="toolbar">
+      <h2 id="library-title" class="toolbar-title">Library</h2>
+      <form id="doc-filters" class="filters" role="search" hx-get="{% url 'portal:documents_table' %}" hx-target="#documents-table"
+            hx-trigger="input changed delay:250ms from:#filter-q, change from:select, submit" hx-swap="outerHTML">
+        <label class="visually-hidden" for="filter-q">Filter by name</label>
+        <input id="filter-q" name="q" type="search" placeholder="Filter by name" value="{{ filters.q }}" autocomplete="off">
+        <label class="visually-hidden" for="filter-status">Status</label>
+        <select id="filter-status" name="status">
+          <option value="">All statuses</option>
+          {% for key, label in status_labels.items %}<option value="{{ key }}"{% if filters.status == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <label class="visually-hidden" for="filter-type">Type</label>
+        <select id="filter-type" name="type">
+          <option value="">All types</option>
+          {% for key, label in type_labels.items %}<option value="{{ key }}"{% if filters.type == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </form>
+      <div class="toolbar-actions">
+        <form method="post" action="{% url 'portal:sync' %}" hx-post="{% url 'portal:sync' %}" hx-target="#documents-table" hx-swap="outerHTML" hx-include="#doc-filters">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-ghost btn-sm" title="Queue every file in storage that is not indexed">{% icon 'sync' 16 %}<span>Sync from storage</span></button>
+        </form>
+        <form method="post" action="{% url 'portal:rebuild' %}" hx-post="{% url 'portal:rebuild' %}" hx-target="#documents-table" hx-swap="outerHTML" hx-include="#doc-filters"
+              data-confirm="Rebuild the whole index? Every document is removed from search and indexed again. This is needed after changing the embedding model or its dimensions."
+              data-confirm-title="Rebuild the index" data-confirm-ok="Rebuild index">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-ghost btn-sm btn-danger-text">{% icon 'database' 16 %}<span>Rebuild index</span></button>
+        </form>
+      </div>
+    </div>
+    {% include "portal/partials/documents_table.html" %}
+  </section>
+</div>
+{% endblock %}

@@ -117,9 +117,24 @@ def highlight_terms(query: str, related: SynonymMap | None = None) -> tuple[set[
     return singles, phrases
 
 
+def snippet_source(hit: Hit) -> str:
+    """Passage text without the context prefix repeated at the start of every passage: the heading path of a
+    Word section, or the sheet name of a spreadsheet (both are already shown as the location)."""
+    lines = hit.content.split("\n")
+    if hit.file_type == "xlsx" and lines and lines[0].startswith("Sheet: "):
+        lines = lines[1:]
+    elif hit.location.startswith("Section: ") and len(lines) > 1:
+        lines = lines[1:]
+    return "\n".join(lines)
+
+
 def build_snippet(content: str, query: str, related: SynonymMap | None = None,
-                  max_words: int = SNIPPET_WORDS) -> list[tuple[str, bool]]:
-    text = re.sub(r"\s+", " ", content).strip()
+                  max_words: int = SNIPPET_WORDS, keep_lines: bool = False) -> list[tuple[str, bool]]:
+    """Highlighted window of the passage. ``keep_lines`` keeps line breaks (spreadsheet rows)."""
+    if keep_lines:
+        text = "\n".join(" ".join(line.split()) for line in content.split("\n") if line.strip())
+    else:
+        text = re.sub(r"\s+", " ", content).strip()
     tokens = list(re.finditer(r"[A-Za-z0-9]+", text))
     if not tokens:
         return [(text[:300], False)]
@@ -202,7 +217,7 @@ def search(query: str, *, index=None, embedder=None, settings_store=None, top_n:
         response.results.append(ResultDocument(
             rank=rank, doc_id=hit.doc_id, file_name=hit.file_name, file_type=hit.file_type, location=hit.location,
             uploaded_at=hit.uploaded_at, passage_id=hit.id, match_percent=percent, score_source=source,
-            snippet=build_snippet(hit.content, query, related), reranker_score=hit.reranker_score, cosine=hit.cosine,
+            snippet=build_snippet(snippet_source(hit), query, related, keep_lines=hit.file_type == "xlsx"), reranker_score=hit.reranker_score, cosine=hit.cosine,
         ))
     response.passages_considered = len(hits)
     response.documents_considered = considered

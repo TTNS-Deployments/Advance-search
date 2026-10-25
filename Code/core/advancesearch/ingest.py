@@ -184,7 +184,10 @@ class DocumentService:
         return [self._info(b) for b in self.blobs.list(self.container)]
 
     def get(self, name: str) -> DocumentInfo | None:
-        blob = self.blobs.info(self.container, name)
+        try:
+            blob = self.blobs.info(self.container, name)
+        except ValueError:  # not a valid blob name (for example "../x.pdf")
+            return None
         return self._info(blob) if blob else None
 
     def find(self, doc_id: str, name: str | None = None) -> DocumentInfo | None:

@@ -1,0 +1,88 @@
+{% load portal_tags %}
+{% if state == "results" %}
+<div class="results-head">
+  <p class="results-summary" data-query="{{ query }}">
+    <strong>{{ results|length }} document{{ results|length|pluralize }}</strong> in {{ response.elapsed_seconds|floatformat:1 }} s
+    {% if response.hidden_below_minimum %}<span class="muted">· {{ response.hidden_below_minimum }} weaker match{{ response.hidden_below_minimum|pluralize:"es" }} hidden</span>{% endif %}
+  </p>
+  <details class="popover">
+    <summary>{% icon 'info' 16 %}<span>How is the match % calculated?</span></summary>
+    <div class="popover-body">
+      <p>Each document is scored by its best passage.</p>
+      <ul>
+        <li><strong>Semantic ranker</strong> (normal case): the ranker's score, 0 to 4, shown as 0–100%.</li>
+        <li><strong>Vector similarity</strong> (when the ranker is unavailable): how close the passage's meaning is to your
+          query (cosine similarity), shown as 0–100%.</li>
+      </ul>
+      <p>Documents below {{ response.min_match_percent }}% are hidden. The percentage is a <strong>relevance indicator, not a
+        probability</strong>: compare results with each other rather than reading it as a certainty.</p>
+    </div>
+  </details>
+</div>
+<ol class="result-list">
+  {% for item in results %}{% with r=item.r %}
+  <li class="result-card">
+    <div class="rank" aria-hidden="true">{{ r.rank }}</div>
+    <div class="result-main">
+      <div class="result-title-row">
+        {% file_icon r.file_type 30 %}
+        <div class="result-heading">
+          <h2 class="result-title"><span class="visually-hidden">Result {{ r.rank }}: </span><a href="{{ item.open_url }}" target="_blank" rel="noopener">{{ r.file_name }}</a></h2>
+          <p class="result-meta">
+            <span class="badge badge-{{ r.file_type }}">{{ item.type_label }}</span>
+            {% if item.size %}<span>{{ item.size|filesize }}</span>{% endif %}
+            {% if item.uploaded %}<span>Uploaded {{ item.uploaded|date:"j M Y" }}</span>{% endif %}
+          </p>
+        </div>
+      </div>
+      <p class="location-chip">{% icon 'folder' 14 %}<span><span class="visually-hidden">Best passage: </span>{{ r.location }}</span></p>
+      <p class="snippet snippet-{{ r.file_type }}">{{ r.snippet|snippet_html }}</p>
+      <div class="result-actions">
+        <a class="btn btn-primary btn-sm" href="{{ item.open_url }}" target="_blank" rel="noopener">{% icon 'open' 16 %}<span>Open document</span></a>
+        <button type="button" class="btn btn-ghost btn-sm" data-copy="{{ item.open_url }}">{% icon 'link' 16 %}<span>Copy link</span></button>
+      </div>
+    </div>
+    <div class="match match-{{ r.match_percent|match_level }}" data-match="{{ r.match_percent }}" tabindex="0"
+         aria-describedby="match-tip-{{ r.rank }}">
+      <div class="match-value"><span class="match-number">{{ r.match_percent }}%</span><span class="match-word">match</span></div>
+      <div class="meter" role="meter" aria-label="Match" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ r.match_percent }}" aria-valuetext="{{ r.match_percent }} percent">
+        <div class="meter-fill"></div>
+      </div>
+      <span class="tooltip" role="tooltip" id="match-tip-{{ r.rank }}">Source: {{ item.source_label }}. A relevance indicator, not a probability.</span>
+    </div>
+  </li>
+  {% endwith %}{% endfor %}
+</ol>
+
+{% elif state == "no_match" %}
+<div class="empty-state" data-state="no-match">
+  <div class="empty-icon">{% icon 'search' 28 %}</div>
+  <h2>No close match</h2>
+  <p>No document matched “{{ query }}” closely enough{% if response.min_match_percent %} (at least {{ response.min_match_percent }}%){% endif %}.</p>
+  <ul class="tips">
+    <li>Describe what the document is about, for example “rules for claiming travel costs”.</li>
+    <li>Use fewer, more specific words, or try a word the document might use.</li>
+    <li>Check that the document has been uploaded and shows <em>Indexed</em>.</li>
+  </ul>
+</div>
+
+{% elif state == "no_documents" %}
+<div class="empty-state" data-state="no-documents">
+  <div class="empty-icon">{% icon 'folder' 28 %}</div>
+  <h2>No documents indexed yet</h2>
+  {% if user.is_admin %}
+  <p>Upload PDF, Word or Excel files and they become searchable within a minute.</p>
+  <a class="btn btn-primary" href="{% url 'portal:documents' %}">{% icon 'upload' 18 %}<span>Upload documents</span></a>
+  {% else %}
+  <p>An Admin needs to upload documents before you can search them.</p>
+  {% endif %}
+</div>
+
+{% elif state == "error" %}
+<div class="empty-state empty-error" data-state="error" role="alert">
+  <div class="empty-icon">{% icon 'alert' 28 %}</div>
+  <h2>Search is temporarily unavailable</h2>
+  <p>Try again in a moment. If it keeps happening, contact your administrator.</p>
+  {% if error_detail %}<p class="error-detail"><code>{{ error_detail }}</code></p>{% endif %}
+</div>
+{% endif %}

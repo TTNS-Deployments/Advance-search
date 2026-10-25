@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load portal_tags %}
+{% block title %}{% if query %}{{ query }} · {% endif %}Advance Search{% endblock %}
+{% block body_class %}page-search{% if query %} has-query{% endif %}{% endblock %}
+{% block content %}
+<section class="hero container" aria-labelledby="hero-title">
+  <h1 id="hero-title" class="hero-title">Find the right document, <span class="hero-accent">by meaning</span></h1>
+  {% if settings_values.welcome_text %}<p class="hero-sub">{{ settings_values.welcome_text }}</p>{% endif %}
+
+  {% if warning %}
+  <div class="alert alert-warning" role="alert">{% icon 'alert' 18 %}<span>{{ warning }}</span></div>
+  {% endif %}
+
+  <form id="search-form" class="search-form" role="search" action="{% url 'portal:search' %}" method="get"
+        hx-get="{% url 'portal:results' %}" hx-target="#results" hx-indicator="#results-region" hx-sync="this:replace">
+    <div class="search-box">
+      <span class="search-icon">{% icon 'search' 22 %}</span>
+      <label for="q" class="visually-hidden">Search documents</label>
+      <input id="q" name="q" type="search" value="{{ query }}" maxlength="500" autocomplete="off" spellcheck="false"
+             placeholder="Ask or describe what you are looking for" aria-describedby="search-hint" enterkeyhint="search">
+      <button type="button" class="icon-btn clear-btn" id="clear-search" aria-label="Clear search"{% if not query %} hidden{% endif %}>{% icon 'x' 18 %}</button>
+      <kbd class="kbd-hint" aria-hidden="true" title="Press / to search">/</kbd>
+      <button type="submit" class="btn btn-primary search-submit">Search</button>
+    </div>
+    <p id="search-hint" class="visually-hidden">Press slash to focus the search box, then Enter to search.</p>
+  </form>
+
+  <div class="suggestions">
+    {% if settings_values.example_queries %}
+    <div class="chip-row" role="group" aria-label="Example searches">
+      <span class="chip-label">{% icon 'sparkle' 14 %} Try</span>
+      {% for example in settings_values.example_queries %}
+      <button type="button" class="chip" data-query="{{ example }}">{{ example }}</button>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="chip-row" id="recent-searches" role="group" aria-label="Recent searches" hidden>
+      <span class="chip-label">{% icon 'clock' 14 %} Recent</span>
+      <span class="recent-list"></span>
+      <button type="button" class="link-btn" id="clear-recent">Clear</button>
+    </div>
+  </div>
+</section>
+
+<section id="results-region" class="results-region container" aria-label="Search results">
+  <div class="skeletons" aria-hidden="true">
+    {% for i in "123" %}
+    <div class="result-card skeleton-card">
+      <div class="sk sk-rank"></div>
+      <div class="sk-lines"><div class="sk sk-title"></div><div class="sk sk-line"></div><div class="sk sk-line short"></div></div>
+      <div class="sk sk-meter"></div>
+    </div>
+    {% endfor %}
+  </div>
+  <div id="results" aria-live="polite">{% if query %}{% include "portal/partials/results.html" %}{% endif %}</div>
+</section>
+{% endblock %}

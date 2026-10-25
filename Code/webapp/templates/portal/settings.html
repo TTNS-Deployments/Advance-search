@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load portal_tags %}
+{% block title %}Settings · Advance Search{% endblock %}
+{% block body_class %}page-settings{% endblock %}
+{% block content %}
+<div class="container page page-narrow">
+  <header class="page-head">
+    <div>
+      <h1>Settings</h1>
+      <p class="muted">Changes apply to the next search. No redeploy is needed.</p>
+    </div>
+  </header>
+
+  {% if error %}
+  <div class="alert alert-error" role="alert">{% icon 'alert' 18 %}<span>{{ error }}</span></div>
+  {% endif %}
+
+  <form method="post" class="card settings-form" novalidate>
+    {% csrf_token %}
+    <h2 class="card-title">Results</h2>
+    <div class="field-grid">
+      <div class="field">
+        <label for="top_n">Number of results</label>
+        <input id="top_n" name="top_n" type="number" min="1" max="10" step="1" value="{{ values.top_n }}" required aria-describedby="top_n-help">
+        <p id="top_n-help" class="field-help">Documents shown per search, 1 to 10.</p>
+      </div>
+      <div class="field">
+        <label for="min_match_percent">Minimum match %</label>
+        <input id="min_match_percent" name="min_match_percent" type="number" min="0" max="100" step="1" value="{{ values.min_match_percent }}" required aria-describedby="min-help">
+        <p id="min-help" class="field-help">Documents scoring below this are hidden, 0 to 100.</p>
+      </div>
+    </div>
+
+    <h2 class="card-title">Search page</h2>
+    <div class="field">
+      <label for="example_queries">Example queries</label>
+      <textarea id="example_queries" name="example_queries" rows="6" aria-describedby="examples-help">{{ values.example_queries|join:"&#10;" }}</textarea>
+      <p id="examples-help" class="field-help">One per line, up to 12. Shown as suggestions under the search bar.</p>
+    </div>
+    <div class="field">
+      <label for="welcome_text">Welcome text</label>
+      <textarea id="welcome_text" name="welcome_text" rows="3" maxlength="500" aria-describedby="welcome-help">{{ values.welcome_text }}</textarea>
+      <p id="welcome-help" class="field-help">Shown under the title on the search page, up to 500 characters.</p>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save settings</button>
+      <button type="submit" name="action" value="reset" class="btn btn-ghost" formnovalidate>Reset to defaults</button>
+    </div>
+  </form>
+
+  <section class="card" aria-labelledby="system-title">
+    <h2 id="system-title" class="card-title">System</h2>
+    <dl class="kv">
+      <dt>Environment</dt><dd>{{ system.environment }} ({{ system.mode }} mode)</dd>
+      <dt>Backends</dt><dd>Storage: {{ system.storage }} · Search: {{ system.search }} · Embeddings: {{ system.embeddings }}</dd>
+      <dt>Search index</dt><dd>{{ system.index_name }}{% if system.passages is not None %} · {{ system.passages }} passages{% endif %}</dd>
+      <dt>Embedding model</dt><dd>{{ system.embedding_deployment }} · {{ system.dimensions }} dimensions{% if system.index_dimensions and system.index_dimensions != system.dimensions %} <span class="status-chip status-failed">index has {{ system.index_dimensions }}</span>{% endif %}</dd>
+      <dt>Upload limit</dt><dd>{{ system.max_upload_mb }} MB per file</dd>
+    </dl>
+    <p class="field-help">Passage sizes, Excel options and related terms are set in <code>Config/search.yaml</code> and need a redeploy.</p>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+from django.urls import include, path
+
+urlpatterns = [
+    path("auth/", include("accounts.urls")),
+    path("api/", include("portal.api_urls")),
+    path("", include("portal.urls")),
+]
+
+handler403 = "portal.views.forbidden"
+handler404 = "portal.views.not_found"
+handler500 = "portal.views.server_error"

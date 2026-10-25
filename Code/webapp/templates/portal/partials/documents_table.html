@@ -1,0 +1,71 @@
+{% load portal_tags %}
+<div id="documents-table" class="table-region"
+     {% if in_progress or backlog %}hx-get="{% url 'portal:documents_table' %}" hx-trigger="every 3s" hx-include="#doc-filters" hx-swap="outerHTML" data-polling="true"{% endif %}>
+  {% if flash %}
+  <div class="alert {% if flash_ok %}alert-success{% else %}alert-error{% endif %}" role="status">
+    {% if flash_ok %}{% icon 'check' 18 %}{% else %}{% icon 'alert' 18 %}{% endif %}<span>{{ flash }}</span>
+  </div>
+  {% endif %}
+  <p class="summary-line">
+    <span><strong>{{ total }}</strong> document{{ total|pluralize }}</span>
+    <span class="status-chip status-indexed">{{ counts.indexed }} indexed</span>
+    {% if counts.queued or counts.processing %}<span class="status-chip status-processing"><span class="spinner" aria-hidden="true"></span>{{ counts.queued|add:counts.processing }} in progress</span>{% endif %}
+    {% if counts.failed %}<span class="status-chip status-failed">{{ counts.failed }} failed</span>{% endif %}
+    {% if counts.no_text %}<span class="status-chip status-no_text">{{ counts.no_text }} no text</span>{% endif %}
+  </p>
+  {% if rows %}
+  <div class="table-scroll">
+    <table class="doc-table">
+      <caption class="visually-hidden">Uploaded documents and their indexing status</caption>
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Type</th>
+          <th scope="col" class="num">Size</th>
+          <th scope="col">Uploaded</th>
+          <th scope="col">Status</th>
+          <th scope="col" class="num">Passages</th>
+          <th scope="col"><span class="visually-hidden">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}{% with d=row.d %}
+        <tr data-status="{{ d.status }}" data-name="{{ d.name }}">
+          <td class="name-cell">
+            <a href="{{ row.open_url }}" target="_blank" rel="noopener" class="doc-name">{% file_icon d.file_type 20 %}<span>{{ d.name }}</span></a>
+            {% if d.error %}<p class="row-error is-{{ d.status }}">{{ d.error }}</p>{% endif %}
+          </td>
+          <td><span class="badge badge-{{ d.file_type }}">{{ row.type_label }}</span></td>
+          <td class="num">{{ d.size|filesize }}</td>
+          <td><span class="nowrap">{{ d.uploaded_at|date:"j M Y, H:i" }}</span><br><span class="muted small">by {{ d.uploaded_by }}</span></td>
+          <td><span class="status-chip status-{{ d.status }}">{% if d.in_progress %}<span class="spinner" aria-hidden="true"></span>{% endif %}{{ row.status_label }}</span></td>
+          <td class="num">{% if d.status == "indexed" %}{{ d.chunks }}{% else %}<span class="muted">–</span>{% endif %}</td>
+          <td class="actions-cell">
+            <div class="row-actions">
+              <a class="icon-btn" href="{{ row.open_url }}" target="_blank" rel="noopener" aria-label="Open {{ d.name }}" title="Open">{% icon 'open' 17 %}</a>
+              <form method="post" action="{% url 'portal:reindex' d.doc_id %}" hx-post="{% url 'portal:reindex' d.doc_id %}" hx-target="#documents-table" hx-swap="outerHTML" hx-include="#doc-filters">
+                {% csrf_token %}<input type="hidden" name="name" value="{{ d.name }}">
+                <button type="submit" class="icon-btn" aria-label="Re-index {{ d.name }}" title="Re-index"{% if d.in_progress %} disabled{% endif %}>{% icon 'refresh' 17 %}</button>
+              </form>
+              <form method="post" action="{% url 'portal:delete' d.doc_id %}" hx-post="{% url 'portal:delete' d.doc_id %}" hx-target="#documents-table" hx-swap="outerHTML" hx-include="#doc-filters"
+                    data-confirm="Delete “{{ d.name }}”? The file and all its passages are removed from search. This cannot be undone." data-confirm-title="Delete document" data-confirm-ok="Delete">
+                {% csrf_token %}<input type="hidden" name="name" value="{{ d.name }}">
+                <button type="submit" class="icon-btn icon-btn-danger" aria-label="Delete {{ d.name }}" title="Delete">{% icon 'trash' 17 %}</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endwith %}{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif total %}
+  <div class="empty-state compact"><p>No documents match these filters.</p></div>
+  {% else %}
+  <div class="empty-state compact" data-state="no-documents">
+    <div class="empty-icon">{% icon 'folder' 26 %}</div>
+    <h3>No documents yet</h3>
+    <p>Drop PDF, Word or Excel files above to make them searchable.</p>
+  </div>
+  {% endif %}
+</div>

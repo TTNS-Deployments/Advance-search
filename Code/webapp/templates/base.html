@@ -1,0 +1,75 @@
+{% load static portal_tags %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false, "historyCacheSize": 0}'>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% block title %}Advance Search{% endblock %}</title>
+  <link rel="icon" href="data:,">
+  <script src="{% static 'js/theme.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'vendor/htmx-2.0.4.min.js' %}" defer></script>
+  <script src="{% static 'js/app.js' %}" defer></script>
+</head>
+<body class="{% block body_class %}{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% if user.is_authenticated %}
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="wordmark" href="{% url 'portal:search' %}" aria-label="Advance Search, home">Advance<span class="wordmark-accent">Search</span></a>
+      <nav class="main-nav" aria-label="Main">
+        <ul>
+          {% for item in nav_items %}
+          <li><a href="{{ item.href }}"{% if item.key == active_nav %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
+          {% endfor %}
+        </ul>
+      </nav>
+      <div class="header-actions">
+        <button type="button" class="icon-btn theme-toggle" id="theme-toggle" aria-label="Switch to dark theme" title="Switch theme">
+          <span class="theme-icon-light">{% icon 'moon' 18 %}</span><span class="theme-icon-dark">{% icon 'sun' 18 %}</span>
+        </button>
+        <span class="role-chip role-{{ user.role|lower }}" title="Signed in as {{ user.role }}">{{ user.role }}</span>
+        <form method="post" action="{% url 'accounts:logout' %}" class="inline-form">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-ghost btn-sm">{% icon 'logout' 16 %}<span>Sign out</span></button>
+        </form>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  <main id="main" tabindex="-1">
+    {% if messages %}
+    <div class="container flash-stack" role="status" aria-live="polite">
+      {% for message in messages %}
+      <div class="alert alert-{% if message.tags == 'error' %}error{% else %}success{% endif %}">
+        {% if message.tags == 'error' %}{% icon 'alert' 18 %}{% else %}{% icon 'check' 18 %}{% endif %}<span>{{ message }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>Advance Search <span class="muted">v{{ app_version }}</span></span>
+      <span class="muted">Environment: {{ environment_name }}</span>
+    </div>
+  </footer>
+
+  <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <form method="dialog" class="dialog-body">
+      <h2 id="confirm-title" class="dialog-title">Are you sure?</h2>
+      <p id="confirm-message" class="dialog-message"></p>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn btn-ghost" autofocus>Cancel</button>
+        <button value="confirm" class="btn btn-danger" id="confirm-ok">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

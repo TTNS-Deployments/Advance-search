@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load portal_tags %}
+{% block title %}Sign in · Advance Search{% endblock %}
+{% block body_class %}page-login{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <section class="login-card" aria-labelledby="login-title">
+    <div class="login-brand">
+      <span class="wordmark wordmark-lg">Advance<span class="wordmark-accent">Search</span></span>
+      <p class="muted">Find documents by meaning, not just keywords.</p>
+    </div>
+    <h1 id="login-title" class="login-title">Sign in</h1>
+
+    {% if error %}
+    <div class="alert {% if locked %}alert-warning{% else %}alert-error{% endif %}" role="alert">
+      {% if locked %}{% icon 'lock' 18 %}{% else %}{% icon 'alert' 18 %}{% endif %}<span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    {% if not configured %}
+    <div class="alert alert-warning" role="alert">
+      {% icon 'lock' 18 %}
+      <span><strong>Sign-in is not configured.</strong> No demo password has been set for this environment. An
+        administrator sets it once with <code>deploy.sh --param demoPassword='…'</code>.</span>
+    </div>
+    {% else %}
+    <form method="post" action="{% url 'accounts:login' %}" class="login-form" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <fieldset class="role-picker">
+        <legend>Sign in as</legend>
+        {% for role, description in roles %}
+        <label class="role-option">
+          <input type="radio" name="role" value="{{ role }}"{% if role == selected_role %} checked{% endif %}>
+          <span class="role-option-body">
+            <span class="role-option-name">{{ role }}</span>
+            <span class="role-option-desc">{{ description }}</span>
+          </span>
+        </label>
+        {% endfor %}
+      </fieldset>
+
+      {% if mode == "password" %}
+      <div class="field">
+        <label for="password">Demo password</label>
+        <div class="password-field">
+          <input id="password" name="password" type="password" autocomplete="current-password" required
+                 {% if locked %}disabled{% endif %} aria-describedby="password-help">
+          <button type="button" class="icon-btn reveal-btn" data-reveal="password" aria-label="Show password" aria-pressed="false">{% icon 'eye' 18 %}</button>
+        </div>
+        <p id="password-help" class="field-help">The shared password for this demo environment.</p>
+      </div>
+      {% else %}
+      <p class="field-help">Local development mode: no password is needed.</p>
+      {% endif %}
+      <button type="submit" class="btn btn-primary btn-block"{% if locked %} disabled{% endif %}>Sign in</button>
+    </form>
+    {% endif %}
+    <p class="login-note">Demo sign-in: one shared password and a role choice. Sign-in with Microsoft Entra ID and
+      real roles is planned.</p>
+  </section>
+</div>
+{% endblock %}
