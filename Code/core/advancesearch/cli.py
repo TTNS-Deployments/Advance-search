@@ -1,0 +1,152 @@
+"""Command line: ``python -m advancesearch <command>``.
+
+    seed              upload and index the sample documents in Data/sample_docs
+    ingest <path>     upload and index one file or every supported file in a folder
+    search "<query>"  run a search and print the top documents
+    status            list documents and their status
+    reindex           rebuild the index and process every document again
+    eval              run Data/sample_docs/queries.yaml and report top-3 accuracy
+    reset --yes       delete every document, the index and the settings overrides
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+from pathlib import Path
+
+from .config import get_settings
+from .extract import FILE_TYPES
+
+
+def _service():
+    from .ingest import get_document_service
+
+    return get_document_service()
+
+
+def _upload_paths(paths: list[Path]) -> int:
+    from .ingest import UploadError
+
+    service = _service()
+    service.index.ensure()
+    failures = 0
+    for path in paths:
+        try:
+            with path.open("rb") as fh:
+                result = service.upload(path.name, fh, path.stat().st_size, uploaded_by="cli")
+        except UploadError as exc:
+            print(f"  skipped {path.name}: {exc}")
+            continue
+        status = service.process(result.name)
+        doc = service.get(result.name)
+        print(f"  {result.name}: {status} ({doc.chunks if doc else 0} passages){' - ' + doc.error if doc and doc.error else ''}")
+        failures += status not in ("indexed", "no_text")
+    return failures
+
+
+def _files(path: Path) -> list[Path]:
+    if path.is_dir():
+        return sorted(p for p in path.iterdir() if p.suffix.lower() in FILE_TYPES)
+    return [path]
+
+
+def cmd_seed(args) -> int:
+    folder = (get_settings().data_dir or Path("Data")) / "sample_docs"
+    files = _files(folder)
+    if not files:
+        print(f"No sample documents in {folder}. Generate them with: python Data/sample_docs/generate.py")
+        return 1
+    print(f"Seeding {len(files)} sample documents from {folder}")
+    return 1 if _upload_paths(files) else 0
+
+
+def cmd_ingest(args) -> int:
+    path = Path(args.path)
+    if not path.exists():
+        print(f"Not found: {path}")
+        return 1
+    return 1 if _upload_paths(_files(path)) else 0
+
+
+def cmd_search(args) -> int:
+    from .search import search
+
+    response = search(args.query, top_n=args.top)
+    print(f'{len(response.results)} documents in {response.elapsed_seconds:.2f} s for "{response.query}"')
+    for r in response.results:
+        snippet = "".join(f"[{t}]" if h else t for t, h in r.snippet)
+        print(f"{r.rank}. {r.file_name}  {r.match_percent}% ({r.score_source})  {r.location}\n   {snippet}")
+    if response.hidden_below_minimum:
+        print(f"({response.hidden_below_minimum} more below the {response.min_match_percent}% minimum)")
+    return 0
+
+
+def cmd_status(args) -> int:
+    docs = _service().list()
+    for d in docs:
+        print(f"{d.status:<10} {d.chunks:>4}  {d.name}{'  - ' + d.error if d.error else ''}")
+    print(f"{len(docs)} documents")
+    return 0
+
+
+def cmd_reindex(args) -> int:
+    service = _service()
+    names = service.rebuild_index()
+    print(f"Index rebuilt; processing {len(names)} documents")
+    for name in names:
+        print(f"  {name}: {service.process(name)}")
+    return 0
+
+
+def cmd_eval(args) -> int:
+    from .evaluation import evaluate
+
+    report = evaluate()
+    for row in report["rows"]:
+        mark = "ok " if row["hit"] else "MISS"
+        print(f"{mark} {row['kind']:<10} {row['query']!r} -> expected {row['expected']}, got {row['got']}")
+    print(f"Top-3 accuracy: {report['hits']}/{report['total']} ({report['accuracy']:.0%})")
+    return 0 if report["hits"] == report["total"] else 1
+
+
+def cmd_reset(args) -> int:
+    if not args.yes:
+        print("This deletes every document, the index and the settings overrides. Re-run with --yes.")
+        return 1
+    from . import factory
+
+    service = _service()
+    for doc in service.list():
+        service.blobs.delete(service.container, doc.name)
+    service.index.reset()
+    factory.get_settings_store().reset()
+    print("All documents, the index and the settings overrides were deleted.")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
+    parser = argparse.ArgumentParser(prog="advancesearch", description="Advance Search command line")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("seed", help="index the sample documents").set_defaults(fn=cmd_seed)
+    p = sub.add_parser("ingest", help="index a file or folder")
+    p.add_argument("path")
+    p.set_defaults(fn=cmd_ingest)
+    p = sub.add_parser("search", help="search")
+    p.add_argument("query")
+    p.add_argument("--top", type=int, default=None)
+    p.set_defaults(fn=cmd_search)
+    sub.add_parser("status", help="list documents").set_defaults(fn=cmd_status)
+    sub.add_parser("reindex", help="rebuild the index").set_defaults(fn=cmd_reindex)
+    sub.add_parser("eval", help="top-3 accuracy on the sample queries").set_defaults(fn=cmd_eval)
+    p = sub.add_parser("reset", help="delete everything")
+    p.add_argument("--yes", action="store_true")
+    p.set_defaults(fn=cmd_reset)
+    args = parser.parse_args(argv)
+    return args.fn(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

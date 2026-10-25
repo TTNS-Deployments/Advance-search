@@ -1,0 +1,15 @@
+# The `advancesearch` package (Code/core) and the Config/ folder are copied into this folder at packaging time
+# by Deployment/scripts/package.sh. Locally: pip install -e Code/core[azure]
+# Pure-Python or small wheels only: the app shares a small App Service plan (no numpy).
+Django>=5.2,<6.0
+gunicorn>=22.0
+whitenoise>=6.7
+pyyaml>=6.0
+requests>=2.31
+pypdf>=5.0
+python-docx>=1.1
+openpyxl>=3.1
+azure-identity>=1.17
+azure-storage-blob>=12.20
+azure-search-documents>=11.6
+azure-monitor-opentelemetry>=1.6

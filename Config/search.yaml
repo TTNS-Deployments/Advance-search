@@ -1,0 +1,70 @@
+# Advance Search defaults. Admins can override the "results", "example_queries" and "welcome_text" values on the
+# Settings page (stored in the config container as settings.json); everything else needs a redeploy.
+# See Documents/configuration.md.
+
+results:
+  top_n: 3                 # documents shown per search (1-10)
+  min_match_percent: 20    # documents below this match % are hidden (0-100)
+  candidates: 50           # passages retrieved before grouping by document
+
+welcome_text: >-
+  Search your organisation's documents by meaning. Describe what you need in your own words.
+
+example_queries:
+  - how many days off do I get
+  - what to do if my laptop is stolen
+  - who approves a purchase over five lakh
+  - battery life of the field tablet
+  - when does the migration go live
+
+chunking:
+  target_tokens: 500       # aim for passages of about this many tokens
+  max_tokens: 600          # never longer than this
+  overlap_ratio: 0.15      # share of each passage repeated at the start of the next one
+  max_chars: 4000          # hard cap on characters per passage
+
+excel:
+  skip_hidden_sheets: true
+  max_rows_per_sheet: 20000
+
+embedding:
+  batch_size: 16           # passages per embeddings call
+
+# Related wording. Used by the local mock embeddings (EMBEDDING_BACKEND=mock), so that related wording scores higher than
+# unrelated wording without a real model, and to highlight related words in result snippets (all modes).
+# Each line is a group of words or phrases with a similar meaning. Azure OpenAI embeddings do not use this list.
+related_terms:
+  - [days off, time off, leave, vacation, holiday, holidays, annual entitlement, paid leave, absence, pto, off work]
+  - [sick, ill, illness, unwell, medical, doctor, sickness]
+  - [baby, parental, maternity, paternity, newborn, child birth, adoption]
+  - [laptop, notebook, computer, device, devices, tablet, tablets, phone, equipment, hardware]
+  - [stolen, lost, theft, missing, misplaced, robbed]
+  - [hack, hacked, breach, compromised, incident, attack, phishing, suspicious, malware, virus]
+  - [password, passphrase, credentials, login, sign in, mfa, multi factor, authenticator]
+  - [approve, approves, approval, approver, authorise, authorize, sign off, sanction, authority]
+  - [purchase, buy, buying, procure, procurement, purchase order, order, supplier, vendor, vendors, sourcing]
+  - [lakh, lakhs, crore, rupees, inr, amount, value, threshold, limit]
+  - [money, budget, spend, spending, cost, costs, expense, expenses, expenditure, funds, allocation]
+  - [reimburse, reimbursement, claim, claims, refund, pay back, travel expenses]
+  - [travel, trip, flight, flights, hotel, journey, business travel]
+  - [salary, pay, payroll, payslip, compensation, wages, ctc]
+  - [battery, battery life, charge, runtime, hours of use, endurance]
+  - [screen, display, brightness, nits]
+  - [waterproof, water, rain, dust, ip rating, rugged, drop]
+  - [go live, launch, cutover, cut over, release, rollout, live date, deadline, milestone, milestones]
+  - [migration, migrate, move, moving, transition, cloud move]
+  - [risk, risks, issue, issues, concern, mitigation, blocker]
+  - [new joiner, new hire, joining, first day, first week, onboarding, induction, orientation]
+  - [manager, line manager, supervisor, reporting manager, team lead]
+  - [work from home, remote, hybrid, home working, wfh]
+  - [quarter, q1, q2, q3, q4, quarterly]
+  - [revenue, sales, income, turnover]
+  - [warranty, guarantee, repair, replacement]
+  - [price, pricing, rate, rates, unit price, cost per unit]
+  - [delete, deletion, deleted, retention, retain, keep, kept, archive]
+  - [backup, backups, restore, recovery, disaster recovery]
+  - [contact, email, phone number, helpdesk, service desk, support]
+  - [tamper, tampering, tampers, interfere, interferes, interference, meddle, magnet, cover is opened]
+  - [cctv, camera, cameras, footage, video, recording, recordings, security camera]
+  - [thrown away, throw away, destroy, shred, shredding, wipe, wiping, dispose, disposal]
+  - [third quarter, q3]
