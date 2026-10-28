@@ -77,7 +77,9 @@ All settings come from environment variables. A value that is an unresolved Key 
 | `results.top_n` | 3 | Yes (1–10) | Most documents shown per search (fewer when fewer really match) |
 | `results.min_match_percent` | 30 | Yes (0–100) | Documents below this match % are hidden (env `SEARCH_MIN_MATCH_PERCENT`) |
 | `results.relative_cutoff_percent` | 60 | Yes (0–100) | Documents below this % of the best document's match % are hidden; 0 = off (env `SEARCH_RELATIVE_CUTOFF_PERCENT`) |
-| `results.strong_reranker_score` | 2.0 | No | A document without any query keyword is shown only if a passage scores at least this with the semantic ranker (0–4) |
+| `results.keyword_weight` | 0.3 | No | How much of the match % depends on how many query keywords a document contains: score × (1 − weight + weight × coverage) |
+| `results.min_keyword_coverage` | 0.6 | No | Share of the query's keywords a document must contain when its meaning match is not strong |
+| `results.strong_reranker_score` | 2.0 | No | A document with fewer keywords than that is shown only if a passage scores at least this with the semantic ranker (0–4) |
 | `results.strong_cosine` | 0.45 | No | The same, when the semantic ranker is unavailable: cosine similarity of at least this |
 | `results.candidates` | 50 | No | Passages retrieved before grouping by document |
 | `welcome_text` | (text) | Yes (≤ 500 characters) | Shown under the title on the search page |

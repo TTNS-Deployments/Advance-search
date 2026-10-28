@@ -201,8 +201,9 @@ def test_keyword_in_file_name_or_related_term_counts():
     hits[1].file_name = "Pricing-2026.pdf"
     kept = rank_documents(hits, 3, 20, 0, "days off", Evidence(), related).documents
     assert [d.best.hit.doc_id for d in kept] == ["x"]
-    kept = rank_documents(hits, 3, 20, 0, "pricing sheet", Evidence(), related).documents
+    kept = rank_documents(hits, 3, 20, 0, "pricing", Evidence(), related).documents
     assert [d.best.hit.doc_id for d in kept] == ["y"]
+    assert rank_documents(hits, 3, 20, 0, "pricing sheet", Evidence(), related).documents == []  # 1 of 2 < 60%
 
 
 def test_filler_words_and_stopwords_are_not_evidence():
@@ -211,3 +212,47 @@ def test_filler_words_and_stopwords_are_not_evidence():
     assert query_keywords("please find the document about it") == []
     hits = [hit("a", reranker=1.5, content="Find this document for more information about it.")]
     assert rank_documents(hits, 3, 20, 0, "please find the document about pets", Evidence()).documents == []
+
+
+# ---------------------------------------------------------------------------- keyword coverage in the score
+
+def test_more_query_words_in_the_document_means_a_higher_score():
+    from advancesearch.search import Evidence
+
+    same_meaning = 3.0  # identical ranker score: only the keyword coverage differs
+    hits = [hit("all", reranker=same_meaning, content="Pets are allowed in the office under this policy."),
+            hit("half", reranker=same_meaning, content="This policy covers acceptable use of devices.")]
+    docs = rank_documents(hits, 3, 0, 0, "policy on pets", Evidence()).documents
+    assert [d.best.hit.doc_id for d in docs] == ["all", "half"]
+    assert [d.coverage for d in docs] == [1.0, 0.5]
+    assert [d.percent for d in docs] == [75, round(75 * 0.85)]  # full score; 15% lower with half the words
+
+
+def test_weak_document_with_one_of_two_words_is_hidden():
+    """'what is the policy on pets' must not show a security policy that never mentions pets."""
+    from advancesearch.search import Evidence
+
+    hits = [hit("security", reranker=1.4, content="This policy protects the information customers trust us with.")]
+    ranking = rank_documents(hits, 3, 20, 0, "what is the policy on pets", Evidence())
+    assert ranking.documents == [] and ranking.hidden_no_evidence == 1
+    strong = [hit("security", reranker=2.2, content="This policy protects the information customers trust us with.")]
+    assert len(rank_documents(strong, 3, 20, 0, "what is the policy on pets", Evidence()).documents) == 1
+
+
+def test_common_word_cannot_lift_a_weak_document_above_a_strong_one():
+    from advancesearch.search import Evidence
+
+    hits = [hit("leave", reranker=3.1, content="Annual leave: 24 working days."),
+            hit("onboarding", reranker=1.6, content="Check-ins at 30, 60 and 90 days.")]
+    docs = rank_documents(hits, 3, 0, 60, "how many days off do I get", Evidence(),
+                          SynonymMap([["days off", "leave", "annual entitlement"]])).documents
+    assert [d.best.hit.doc_id for d in docs] == ["leave"]  # 40% < 60% of 78%: the cutoff still applies
+
+
+def test_related_term_in_several_groups_counts_for_each():
+    from advancesearch.search import Evidence
+
+    related = SynonymMap([["quarter", "q3"], ["third quarter", "q3"]])
+    hits = [hit("budget", reranker=1.5, content="Marketing | 9500000 | 11000000 | Q3 14500000")]
+    docs = rank_documents(hits, 3, 0, 0, "marketing third quarter", Evidence(), related).documents
+    assert docs and docs[0].coverage == 1.0

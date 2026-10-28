@@ -27,7 +27,8 @@ CACHE_SECONDS = 30
 
 FALLBACK_DEFAULTS = {
     "results": {"top_n": 3, "min_match_percent": 30, "relative_cutoff_percent": 60, "candidates": 50,
-                "strong_reranker_score": 2.0, "strong_cosine": 0.45},
+                "strong_reranker_score": 2.0, "strong_cosine": 0.45,
+                "keyword_weight": 0.3, "min_keyword_coverage": 0.6},
     "welcome_text": "",
     "example_queries": [],
     "chunking": {"target_tokens": 500, "max_tokens": 600, "overlap_ratio": 0.15, "max_chars": 4000},
@@ -165,7 +166,8 @@ class SettingsStore:
         from .search import Evidence
 
         r = self.defaults["results"]
-        return Evidence(float(r.get("strong_reranker_score", 2.0)), float(r.get("strong_cosine", 0.45)))
+        return Evidence(float(r.get("strong_reranker_score", 2.0)), float(r.get("strong_cosine", 0.45)),
+                        float(r.get("keyword_weight", 0.3)), float(r.get("min_keyword_coverage", 0.6)))
 
     @property
     def chunking(self) -> dict:

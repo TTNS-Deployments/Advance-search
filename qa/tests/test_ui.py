@@ -164,7 +164,7 @@ def test_UI12_queries_return_expected_document_in_top_3(admin, server, q):
 
 
 def test_UI13_result_cards_and_match_meter(admin, server):
-    cards = search(admin, "who approves a purchase over five lakh")
+    cards = search(admin, "approval and budget for laptops")  # a query three documents genuinely match
     assert cards.count() == 3
     summary = admin.locator(".results-summary").inner_text()
     assert re.match(r"3 documents in \d+\.\d s", summary)
@@ -191,7 +191,7 @@ def test_UI13_result_cards_and_match_meter(admin, server):
 
 
 def test_UI14_meter_colour_follows_value(admin, server):
-    cards = search(admin, "how long does the device last on one charge")  # several results with different scores
+    cards = search(admin, "laptop")  # three documents mention laptops, with clearly different scores
     assert cards.count() >= 2
     colours = [cards.nth(i).locator(".meter-fill").evaluate("e => getComputedStyle(e).backgroundColor") for i in range(cards.count())]
     values = [int(cards.nth(i).locator("[role=meter]").get_attribute("aria-valuenow")) for i in range(cards.count())]

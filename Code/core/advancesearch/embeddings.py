@@ -49,24 +49,40 @@ class SynonymMap:
 
     def __init__(self, groups: list[list[str]]):
         self.phrases: dict[tuple[str, ...], int] = {}
+        self.all_groups: dict[tuple[str, ...], set[int]] = {}   # a term can belong to several groups ("q3")
         for gid, group in enumerate(groups):
             for phrase in group:
                 key = tuple(words(str(phrase)))
                 if key:
                     self.phrases.setdefault(key, gid)
+                    self.all_groups.setdefault(key, set()).add(gid)
         self.max_len = max((len(k) for k in self.phrases), default=1)
 
-    def concepts(self, tokens: list[str]) -> list[int]:
+    def spans(self, tokens: list[str]) -> list[tuple[int, int, int]]:
+        """``(start, end, concept id)`` of every word group found, longest match first."""
         found, i = [], 0
         while i < len(tokens):
             for n in range(min(self.max_len, len(tokens) - i), 0, -1):
                 gid = self.phrases.get(tuple(tokens[i:i + n]))
                 if gid is not None:
-                    found.append(gid)
+                    found.append((i, i + n, gid))
                     i += n - 1
                     break
             i += 1
         return found
+
+    def concepts(self, tokens: list[str]) -> list[int]:
+        return [gid for _, _, gid in self.spans(tokens)]
+
+    def groups_of(self, tokens: list[str], start: int, end: int) -> set[int]:
+        """Every group the term ``tokens[start:end]`` belongs to."""
+        return set(self.all_groups.get(tuple(tokens[start:end]), ()))
+
+    def all_concepts(self, tokens: list[str]) -> set[int]:
+        out: set[int] = set()
+        for start, end, _ in self.spans(tokens):
+            out |= self.groups_of(tokens, start, end)
+        return out
 
     def concept_terms(self, gid: int) -> list[tuple[str, ...]]:
         return [k for k, v in self.phrases.items() if v == gid]

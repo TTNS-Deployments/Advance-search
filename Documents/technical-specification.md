@@ -99,14 +99,18 @@ similarity over all stored vectors, reciprocal rank fusion (k = 60), and a stand
    A query that names something specific — a "quoted phrase", a code with letters and digits (`FT-200`), a label
    (`figure 3`, `table 2`) or a file name (`wiring-diagram.png`) — only matches documents that contain it; when
    the query is nothing but that name, a passage containing it scores at least 50%.
-6. Evidence: a document is kept only if it contains at least one keyword of the query (stemmed; stopwords,
-   one- and two-letter words and filler words such as "document" or "find" do not count), or a term from the
-   same `related_terms` group, in a retrieved passage or its file name, **or** if one of its passages is
-   genuinely relevant in meaning: semantic ranker score ≥ `results.strong_reranker_score` (2.0, "relevant" on the
+6. Keyword coverage and evidence. The query's keywords are its words without stopwords, one- and two-letter
+   words and filler words such as "document" or "find" (stemmed). A keyword is *covered* when the document
+   contains it, or a term of the same `related_terms` group, in a retrieved passage or its file name.
+   Coverage = covered keywords ÷ keywords. The document's match % becomes
+   `passage match % × (1 − keyword_weight + keyword_weight × coverage)` (`keyword_weight` 0.3): all keywords
+   present keeps the full score, each missing keyword lowers it, by up to 30%. A document is kept only if its
+   coverage is at least `min_keyword_coverage` (0.6, so more than half of the keywords), **or** if one of its
+   passages is genuinely relevant in meaning: semantic ranker score ≥ `results.strong_reranker_score` (2.0, "relevant" on the
    ranker's 0–4 scale) or, without the ranker, cosine ≥ `results.strong_cosine` (0.45). Vector search always returns
    the nearest passages and the ranker scores unrelated ones at about 1–2 (25–50%), so without this rule unrelated
-   documents would appear. The API reports the keywords found (`matchedTerms`) and the number hidden
-   (`hiddenNoEvidence`).
+   documents would appear. The API reports the keywords found (`matchedTerms`), the coverage
+   (`keywordCoverage`) and the number of documents hidden by this rule (`hiddenNoEvidence`).
 7. Precision filters, in order: documents below `min_match_percent` (default 30) are hidden; documents below
    `relative_cutoff_percent` (default 60) of the best document's match % are hidden; at most `top_n` (default 3)
    are shown, sorted by match %. Nothing is padded: no match returns no result and the API adds

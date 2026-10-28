@@ -11,11 +11,17 @@ Match score (also in Documents/user-guide.md and Documents/technical-specificati
   ``EXACT_BONUS`` points (at most 100%). A query that names something specific (a "quoted phrase", a code such as
   ``FT-200``, a label such as ``figure 3`` or a file name such as ``wiring-diagram.png``) only matches documents
   that contain it; when the query is only that name, a passage that contains it scores at least ``NAMED_FLOOR``.
+* Keyword coverage: the share of the query's keywords (stemmed; stopwords and filler words excluded) that the
+  document contains, literally or as a term of the same ``related_terms`` group, in its retrieved passages or file
+  name. The document's match % is ``passage match % * (1 - keyword_weight + keyword_weight * coverage)``: with
+  every keyword present it keeps the full score, and each missing keyword lowers it, by up to ``keyword_weight``
+  (30%) when none is present. So the more of the query a document contains, the higher it scores, and a weak
+  passage cannot overtake a strong one just by containing a common word.
 * Evidence: a document is shown only if its best passage is genuinely relevant in meaning (semantic ranker score
   of at least ``strong_reranker_score``, 2.0 = "relevant" on the ranker's 0-4 scale; or, without the ranker, cosine
-  similarity of at least ``strong_cosine``) **or** it contains at least one keyword of the query (or a related
-  term). Vector search always returns the nearest passages, even when none is related, and the ranker gives such
-  passages about 1-2 ("somewhat relevant", 25-50%); without this rule they would be shown.
+  similarity of at least ``strong_cosine``) **or** it contains at least ``min_keyword_coverage`` (60%) of the
+  query's keywords. Vector search always returns the nearest passages, even when none is related, and the ranker
+  gives such passages about 1-2 ("somewhat relevant", 25-50%); without this rule they would be shown.
 * Precision: documents below ``min_match_percent`` are dropped, then documents below ``relative_cutoff_percent``
   of the best document's match %, then at most ``top_n`` are shown. Nothing is padded: no match means no result.
   The percentage is a relevance indicator, not a probability.
@@ -87,6 +93,7 @@ class ResultDocument:
     cosine: float | None = None
     exact_match: bool = False              # the best passage or the file name contains the query as a phrase
     matched_terms: list[str] = field(default_factory=list)   # query keywords (or related terms) in the document
+    keyword_coverage: float | None = None  # share of the query's keywords the document contains
     images: list[ResultImage] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -94,6 +101,7 @@ class ResultDocument:
             "rank": self.rank, "docId": self.doc_id, "fileName": self.file_name, "fileType": self.file_type,
             "location": self.location, "uploadedAt": self.uploaded_at, "passageId": self.passage_id,
             "matchPercent": self.match_percent, "scoreSource": self.score_source, "exactMatch": self.exact_match, "matchedTerms": self.matched_terms,
+            "keywordCoverage": None if self.keyword_coverage is None else round(self.keyword_coverage, 2),
             "rerankerScore": self.reranker_score, "cosine": None if self.cosine is None else round(self.cosine, 4),
             "snippet": "".join(t for t, _ in self.snippet),
             "highlights": [t for t, h in self.snippet if h],
@@ -243,6 +251,8 @@ class Evidence:
     """Thresholds for a "genuinely relevant in meaning" passage (``Config/search.yaml``, ``results``)."""
     reranker: float = 2.0
     cosine: float = 0.45
+    keyword_weight: float = 0.3      # share of the match % that comes from keyword coverage
+    min_coverage: float = 0.6        # keywords a document needs when its meaning match is not strong
 
 
 def query_keywords(query: str) -> list[str]:
@@ -263,10 +273,12 @@ class RankedDocument:
     passages: list[Scored]                # every passage of the document that was retrieved, best first
     images: list[Scored] = field(default_factory=list)
     matched_terms: list[str] = field(default_factory=list)
+    coverage: float | None = None         # share of the query's keywords the document contains
+    score: int | None = None              # match % with keyword coverage blended in
 
     @property
     def percent(self) -> int:
-        return self.best.percent
+        return self.best.percent if self.score is None else self.score
 
 
 @dataclass
@@ -279,24 +291,35 @@ class Ranking:
     hidden_no_evidence: int = 0
 
 
-def keyword_matches(doc: RankedDocument, keywords: dict[str, str], query_concepts: set[int],
-                    related: SynonymMap | None) -> list[str]:
-    """Query keywords (as typed) or related-term groups found in the document's retrieved passages or file name.
+def keyword_groups(query: str, keywords: dict[str, str], related: SynonymMap | None) -> dict[str, set[int]]:
+    """For each query keyword, the related-term groups it belongs to ("days off" -> the leave group)."""
+    groups: dict[str, set[int]] = {kw: set() for kw in keywords}
+    if related is None:
+        return groups
+    tokens = words(query)
+    for start, end, _ in related.spans(tokens):
+        for tok in tokens[start:end]:
+            if tok in groups:
+                groups[tok] |= related.groups_of(tokens, start, end)
+    return groups
+
+
+def keyword_coverage(doc: RankedDocument, keywords: dict[str, str], groups: dict[str, set[int]],
+                     related: SynonymMap | None) -> tuple[list[str], float]:
+    """Query keywords (as typed) the document contains, literally or as a related term, and their share.
 
     ``keywords`` maps each stemmed keyword to the word the user typed."""
-    found: list[str] = []
+    if not keywords:
+        return [], 0.0
     name = set(words(doc.best.hit.file_name))
     texts = [words(s.hit.content) for s in doc.passages]
-    for kw, typed in keywords.items():
-        if kw in name or any(kw in t for t in texts):
-            found.append(typed)
-    if related is not None and query_concepts:
+    doc_groups: set[int] = set()
+    if related is not None and any(groups.values()):
         for t in texts:
-            for gid in sorted(query_concepts & set(related.concepts(t))):
-                label = " ".join(related.concept_terms(gid)[0])
-                if label not in found:
-                    found.append(label)
-    return found
+            doc_groups |= related.all_concepts(t)
+    found = [typed for kw, typed in keywords.items()
+             if kw in name or any(kw in t for t in texts) or groups.get(kw, set()) & doc_groups]
+    return found, len(found) / len(keywords)
 
 
 def rank_documents(hits: list[Hit], top_n: int, min_match_percent: int, relative_cutoff_percent: int = 0,
@@ -317,14 +340,20 @@ def rank_documents(hits: list[Hit], top_n: int, min_match_percent: int, relative
     if evidence is not None and query:  # no shared keyword and no strong meaning match: not a match at all
         typed = {stem(w): w for w in reversed(TOKEN_RE.findall(query.lower()))}
         keywords = {kw: typed.get(kw, kw) for kw in query_keywords(query)}
-        concepts = set(related.concepts(words(query))) if related is not None else set()
+        groups = keyword_groups(query, keywords, related)
         backed = []
         for d in docs:
-            d.matched_terms = keyword_matches(d, keywords, concepts, related)
-            if d.matched_terms or any(strong_meaning(s, evidence) for s in d.passages):
+            d.matched_terms, coverage = keyword_coverage(d, keywords, groups, related)
+            strong = any(strong_meaning(s, evidence) for s in d.passages)
+            if keywords:
+                d.coverage = coverage
+                if not terms.only_named:  # every keyword present: full score; each missing one lowers it
+                    w = evidence.keyword_weight
+                    d.score = min(100, round(d.best.percent * (1 - w + w * coverage)))
+            if strong or (keywords and coverage >= evidence.min_coverage):
                 backed.append(d)
         ranking.hidden_no_evidence = len(docs) - len(backed)
-        docs = backed
+        docs = sorted(backed, key=lambda d: (d.percent, d.best.hit.score), reverse=True)
     if terms.specific:  # the query names something: only documents that contain all of it
         wanted = set(range(len(terms.specific)))
         named = [d for d in docs if wanted <= set().union(*(s.specific for s in d.passages))]
@@ -471,7 +500,7 @@ def search(query: str, *, index=None, embedder=None, settings_store=None, image_
             uploaded_at=hit.uploaded_at, passage_id=hit.id, match_percent=doc.percent, score_source=doc.best.source,
             snippet=build_snippet(snippet_source(hit), query, related, keep_lines=hit.file_type == "xlsx"),
             reranker_score=hit.reranker_score, cosine=hit.cosine, exact_match=doc.best.exact,
-            matched_terms=doc.matched_terms,
+            matched_terms=doc.matched_terms, keyword_coverage=doc.coverage,
             images=_result_images(doc, image_store),
         ))
     response.passages_considered = len(hits)

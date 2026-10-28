@@ -53,9 +53,10 @@ Each document is scored by its best passage:
   semantic queries is used up). The match % is the similarity between the meaning of your query and the passage
   (cosine similarity, 0 to 1) as a percentage.
 
-A document is suggested only if it contains at least one word of your search (or a closely related word), or if
-the ranker rates its meaning as genuinely relevant. Documents that share nothing with your search are never shown,
-whatever their percentage. Of the rest, only documents that really match are shown: documents under the minimum (30% by default), or under 60% of the
+The more of your search words a document contains (or closely related words), the higher its match %: with every
+word present it keeps the ranker's full score, and each missing word lowers it, by up to 30%. A document is
+suggested only if it contains more than half of your search words, or if the ranker rates its meaning as
+genuinely relevant. So "policy on pets" does not show a policy that never mentions pets. Of the rest, only documents that really match are shown: documents under the minimum (30% by default), or under 60% of the
 best result's match, are hidden, so a search often shows just one document. A passage with your exact phrase
 scores higher, and a code, file name, figure number or "quoted phrase" in your query only finds documents that
 contain it. Matching **images** (diagrams, photos, figures) are shown as thumbnails in the result, with their

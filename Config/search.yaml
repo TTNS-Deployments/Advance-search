@@ -8,9 +8,14 @@ results:
   relative_cutoff_percent: 60  # documents below this % of the best document's match are hidden (0 = off);
                                # env SEARCH_RELATIVE_CUTOFF_PERCENT
   candidates: 50           # passages retrieved before grouping by document
-  # A document is shown only if it shares at least one keyword (or related term) with the query, OR its best
+  # Keyword coverage = share of the query's keywords (or related terms) a document contains.
+  # Match % = ranker match % x (1 - keyword_weight + keyword_weight x coverage): all keywords present keeps the
+  # full score, each missing keyword lowers it (by up to keyword_weight). More of the query, higher score.
+  keyword_weight: 0.3
+  # A document is shown only if it contains at least min_keyword_coverage of the query's keywords, OR its best
   # passage is genuinely relevant in meaning: semantic ranker score >= strong_reranker_score (0-4 scale; 2 =
   # "relevant") or, when the ranker is unavailable, cosine similarity >= strong_cosine.
+  min_keyword_coverage: 0.6
   strong_reranker_score: 2.0
   strong_cosine: 0.45
 
