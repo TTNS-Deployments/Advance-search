@@ -29,6 +29,11 @@
         <input id="min_match_percent" name="min_match_percent" type="number" min="0" max="100" step="1" value="{{ values.min_match_percent }}" required aria-describedby="min-help">
         <p id="min-help" class="field-help">Documents scoring below this are hidden, 0 to 100.</p>
       </div>
+      <div class="field">
+        <label for="relative_cutoff_percent">Relative cutoff %</label>
+        <input id="relative_cutoff_percent" name="relative_cutoff_percent" type="number" min="0" max="100" step="1" value="{{ values.relative_cutoff_percent }}" required aria-describedby="relative-help">
+        <p id="relative-help" class="field-help">Documents scoring below this share of the best result's match are hidden, 0 (off) to 100.</p>
+      </div>
     </div>
 
     <h2 class="card-title">Search page</h2>

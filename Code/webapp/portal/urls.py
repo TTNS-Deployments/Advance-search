@@ -15,6 +15,7 @@ urlpatterns = [
     path("documents/<str:doc_id>/reindex", views.reindex, name="reindex"),
     path("documents/<str:doc_id>/delete", views.delete, name="delete"),
     path("documents/<str:doc_id>/open/<path:name>", views.open_document, name="open"),
+    path("documents/<str:doc_id>/images/<str:image_id>", views.document_image, name="image"),
     path("settings", views.settings_page, name="settings"),
     path("healthz", views.healthz, name="healthz"),
 ]

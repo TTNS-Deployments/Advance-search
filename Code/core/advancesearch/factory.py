@@ -48,6 +48,13 @@ def get_embedder():
 
 
 @lru_cache(maxsize=1)
+def get_image_store():
+    from .images import ImageStore
+
+    return ImageStore(get_blob_store(), get_settings().container_images)
+
+
+@lru_cache(maxsize=1)
 def get_settings_store():
     from .settings_store import SettingsStore
 
@@ -55,7 +62,7 @@ def get_settings_store():
 
 
 def reset() -> None:
-    for fn in (get_blob_store, get_index, get_embedder, get_settings_store):
+    for fn in (get_blob_store, get_index, get_embedder, get_image_store, get_settings_store):
         fn.cache_clear()
     from . import settings_store, worker
 

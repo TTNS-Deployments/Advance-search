@@ -8,7 +8,7 @@
 | Web app settings (environment variables, set by the template) | Endpoints, names, limits, secrets as Key Vault references | The template (every infrastructure deployment resets them) |
 | Key Vault | `demo-password`, `django-secret-key` | `--param demoPassword='...'`; the Django key is regenerated on each infrastructure deployment |
 | `Config/search.yaml` (in the package) | Defaults for results and the search page, passage sizes, Excel options, related terms | Editing the file and redeploying the code |
-| `settings.json` in the `config` container | Admin overrides: number of results, minimum match %, example queries, welcome text | The **Settings** page (no redeploy) |
+| `settings.json` in the `config` container | Admin overrides: number of results, minimum match %, relative cutoff %, example queries, welcome text | The **Settings** page (no redeploy) |
 | `.env` (local only) | Local development | You; read by the `make` targets |
 
 All settings come from environment variables. A value that is an unresolved Key Vault reference (the literal text
@@ -26,6 +26,7 @@ All settings come from environment variables. A value that is an unresolved Key 
 | `AZURE_STORAGE_CONNECTION_STRING` | – | – | Instead of the URL, for Azurite or key-based local tests |
 | `CONTAINER_DOCUMENTS` | `documents` | `documents` | Container with the original files and their status metadata |
 | `CONTAINER_CONFIG` | `config` | `config` | Container with `settings.json` |
+| `CONTAINER_IMAGES` | `extracted-images` | `extracted-images` | Container with the images extracted from documents (`<docId>/<imageId>.<ext>` and `<docId>/images.json`) |
 | `SEARCH_BACKEND` | from mode | – | `local` (SQLite hybrid search) or `azure` (Azure AI Search) |
 | `SEARCH_ENDPOINT` | – | `https://<search>.search.windows.net` | Azure AI Search endpoint |
 | `SEARCH_API_KEY` | – | – | Admin key for local experiments only; Azure uses the managed identity |
@@ -37,6 +38,10 @@ All settings come from environment variables. A value that is an unresolved Key 
 | `EMBEDDING_DEPLOYMENT` | `text-embedding-3-small` | Deployment name (= model name) | Embedding deployment |
 | `EMBEDDING_DIMENSIONS` | `1536` | `embeddingDimensions` | Vector size of the index and the model; a change needs **Rebuild index** |
 | `MAX_UPLOAD_MB` | `20` | `maxUploadMb` | Largest upload |
+| `SEARCH_MIN_MATCH_PERCENT` | – (`search.yaml`: 30) | – | Overrides `results.min_match_percent` (0–100). The Settings page overrides this |
+| `SEARCH_RELATIVE_CUTOFF_PERCENT` | – (`search.yaml`: 60) | – | Overrides `results.relative_cutoff_percent` (0–100, 0 = off). The Settings page overrides this |
+| `IMAGE_EXTRACTION` | `on` | – | `off` stops extracting images from new and re-indexed documents |
+| `IMAGE_OCR` | `auto` | – | `auto`: read text in images when `pytesseract` and the `tesseract` program are installed; `off`: never |
 | `INGEST_WORKER` | `thread` | – | `thread` (background thread), `inline` (tests) or `off` |
 | `SYNC_INTERVAL_SECONDS` | `300` | – | How often the worker looks for new files in storage |
 | `PROCESSING_STALE_MINUTES` | `15` | – | When a `processing` claim of another instance counts as abandoned |
@@ -69,8 +74,11 @@ All settings come from environment variables. A value that is an unresolved Key 
 
 | Key | Default | Editable on Settings | Meaning |
 |---|---|---|---|
-| `results.top_n` | 3 | Yes (1–10) | Documents shown per search |
-| `results.min_match_percent` | 20 | Yes (0–100) | Documents below this match % are hidden |
+| `results.top_n` | 3 | Yes (1–10) | Most documents shown per search (fewer when fewer really match) |
+| `results.min_match_percent` | 30 | Yes (0–100) | Documents below this match % are hidden (env `SEARCH_MIN_MATCH_PERCENT`) |
+| `results.relative_cutoff_percent` | 60 | Yes (0–100) | Documents below this % of the best document's match % are hidden; 0 = off (env `SEARCH_RELATIVE_CUTOFF_PERCENT`) |
+| `results.strong_reranker_score` | 2.0 | No | A document without any query keyword is shown only if a passage scores at least this with the semantic ranker (0–4) |
+| `results.strong_cosine` | 0.45 | No | The same, when the semantic ranker is unavailable: cosine similarity of at least this |
 | `results.candidates` | 50 | No | Passages retrieved before grouping by document |
 | `welcome_text` | (text) | Yes (≤ 500 characters) | Shown under the title on the search page |
 | `example_queries` | 5 queries | Yes (≤ 12, one per line) | Suggestion chips under the search bar |
@@ -81,10 +89,21 @@ All settings come from environment variables. A value that is an unresolved Key 
 | `excel.skip_hidden_sheets` | true | No | Ignore hidden sheets |
 | `excel.max_rows_per_sheet` | 20000 | No | Rows read per sheet |
 | `embedding.batch_size` | 16 | No | Passages per embeddings request |
+| `images.enabled` | true | No | Extract embedded images from PDF, Word and Excel files |
+| `images.min_width`, `images.min_height` | 50, 50 | No | Smaller images (icons, bullets) are skipped, in pixels (and in points on a PDF page) |
+| `images.max_aspect_ratio` | 12 | No | Thinner images (rules, borders) are skipped |
+| `images.repeated_pages` | 3 | No | An image repeated on this many pages or sections is a logo or watermark and is skipped (0 = keep) |
+| `images.max_per_document` | 100 | No | Images kept per document |
+| `images.context_lines` | 3 | No | Lines (Word: paragraphs, Excel: rows) above and below an image indexed with it |
+| `images.max_text_chars` | 2000 | No | Longest indexed text per image |
+| `images.ocr` | auto | No | `auto` or `off`; see `IMAGE_OCR` |
 | `related_terms` | 34 groups | No | Groups of related words: used by the local mock embeddings and to highlight related words in snippets |
 
-Changes to the non-editable keys apply after a code redeploy; chunking changes apply to documents indexed
-afterwards (use **Rebuild index** to apply them to all).
+Changes to the non-editable keys apply after a code redeploy; chunking and image changes apply to documents
+indexed afterwards (use **Rebuild index**, or `python -m advancesearch reindex --keep-index`, to apply them to all).
+
+Precedence of the two relevance thresholds: the **Settings** page, then the environment variable, then
+`search.yaml`.
 
 ## ARM parameters
 

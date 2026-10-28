@@ -1,7 +1,7 @@
 # Project progress and context
 
 Read this first when continuing work in a new session. Keep it updated after each piece of work.
-Last updated: 2026-10-25 (phase 1 built and verified locally; ready for the first demo deployment from Cloud Shell).
+Last updated: 2026-10-26 (image extraction and image search; search precision fix).
 
 ## What this is
 
@@ -111,10 +111,27 @@ cd ~ && git clone https://github.com/TTNS-Deployments/Advance-search.git ; cd ~/
   showing secrets"; nothing secret is in the outputs (the password is a secure parameter).
 - Still to confirm in the app: sign-in, sample documents reach *Indexed*, search results and match %.
 
+## Image search and precision (2026-10-26)
+
+- Images are extracted from PDF (pypdf, with page position for caption and nearby text), Word and Excel (zip parts,
+  alt text, anchors); filtered (< 50×50, thin, repeated on 3+ pages, duplicates); saved to the `extracted-images`
+  container (`<docId>/<imageId>.<ext>` + `images.json`); indexed as one passage each (`imageId` field). OCR is
+  optional (`pip install -e Code/core[ocr]` + `tesseract`). No PyMuPDF: the web app package must stay small.
+- Precision cause: `top_n=3` was filled with anything above an absolute 20%, with no relative cutoff and no
+  preference for exact wording. Now: min 30%, relative cutoff 60% of the best (both on the Settings page and
+  `SEARCH_MIN_MATCH_PERCENT` / `SEARCH_RELATIVE_CUTOFF_PERCENT`), +10 for an exact phrase, named codes / labels /
+  file names required. Sample eval: 19/19 found, precision 19/25, 4/4 unrelated queries empty, 5/5 image queries.
+- Documents indexed before this change are re-processed automatically by the start-up scan (no `images` metadata),
+  or with `python -m advancesearch reindex --keep-index`. Azure: the existing index gets the `imageId` field added
+  in place; the app creates the `extracted-images` container if the template has not.
+- Untested on Azure: image extraction with real embeddings and the semantic ranker; the thresholds may need tuning.
+
 ## Open items
 
 - First real deployment: watch for `InsufficientQuota`, role-assignment propagation (documents failing with
   401/403 → Re-index after a few minutes), and the first start-up time on the shared B1 plan.
-- Check search quality with real embeddings on the 19 sample queries (`/api/search`), and tune `min_match_percent`.
+- Check search quality with real embeddings on the sample queries (`/api/search`, `python -m advancesearch eval`),
+  and tune `min_match_percent` and `relative_cutoff_percent`.
 - dev and prod untested; prod code deployment needs a path from inside the VNet.
-- Phase 2: Entra ID sign-in with real roles and per-department access, OCR, more file types, answer generation.
+- Phase 2: Entra ID sign-in with real roles and per-department access, OCR of scanned pages, more file types
+  (PowerPoint), answer generation.

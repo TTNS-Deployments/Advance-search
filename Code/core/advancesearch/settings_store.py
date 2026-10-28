@@ -1,7 +1,9 @@
 """Search settings: defaults from ``Config/search.yaml`` plus admin overrides in the config container.
 
-Admins change ``top_n``, ``min_match_percent``, ``example_queries`` and ``welcome_text`` on the Settings page.
-The overrides are saved as ``settings.json`` in the config container, so no redeploy is needed.
+Admins change ``top_n``, ``min_match_percent``, ``relative_cutoff_percent``, ``example_queries`` and
+``welcome_text`` on the Settings page. The overrides are saved as ``settings.json`` in the config container, so no
+redeploy is needed. The two thresholds can also be set with ``SEARCH_MIN_MATCH_PERCENT`` and
+``SEARCH_RELATIVE_CUTOFF_PERCENT``; precedence: Settings page, then environment variable, then search.yaml.
 """
 
 from __future__ import annotations
@@ -20,16 +22,18 @@ from .config import Settings
 log = logging.getLogger(__name__)
 
 OVERRIDES_BLOB = "settings.json"
-EDITABLE = ("top_n", "min_match_percent", "example_queries", "welcome_text")
+EDITABLE = ("top_n", "min_match_percent", "relative_cutoff_percent", "example_queries", "welcome_text")
 CACHE_SECONDS = 30
 
 FALLBACK_DEFAULTS = {
-    "results": {"top_n": 3, "min_match_percent": 20, "candidates": 50},
+    "results": {"top_n": 3, "min_match_percent": 30, "relative_cutoff_percent": 60, "candidates": 50,
+                "strong_reranker_score": 2.0, "strong_cosine": 0.45},
     "welcome_text": "",
     "example_queries": [],
     "chunking": {"target_tokens": 500, "max_tokens": 600, "overlap_ratio": 0.15, "max_chars": 4000},
     "excel": {"skip_hidden_sheets": True, "max_rows_per_sheet": 20000},
     "embedding": {"batch_size": 16},
+    "images": {},
     "related_terms": [],
 }
 
@@ -73,6 +77,14 @@ def validate(values: dict) -> dict:
         if not 0 <= minimum <= 100:
             raise SettingsError("Minimum match % must be between 0 and 100.")
         clean["min_match_percent"] = minimum
+    if "relative_cutoff_percent" in values:
+        try:
+            relative = int(values["relative_cutoff_percent"])
+        except (TypeError, ValueError):
+            raise SettingsError("Relative cutoff % must be a whole number.") from None
+        if not 0 <= relative <= 100:
+            raise SettingsError("Relative cutoff % must be between 0 and 100.")
+        clean["relative_cutoff_percent"] = relative
     if "example_queries" in values:
         queries = values["example_queries"]
         if isinstance(queries, str):
@@ -117,9 +129,12 @@ class SettingsStore:
     def effective(self) -> dict:
         """Editable values in effect (defaults overlaid with admin overrides)."""
         d = self.defaults
+        env_min, env_relative = self.settings.min_match_percent, self.settings.relative_cutoff_percent
         values = {
             "top_n": int(d["results"]["top_n"]),
-            "min_match_percent": int(d["results"]["min_match_percent"]),
+            "min_match_percent": int(d["results"]["min_match_percent"]) if env_min is None else env_min,
+            "relative_cutoff_percent": (int(d["results"].get("relative_cutoff_percent", 60)) if env_relative is None
+                                        else env_relative),
             "example_queries": list(d.get("example_queries") or []),
             "welcome_text": d.get("welcome_text") or "",
         }
@@ -145,12 +160,24 @@ class SettingsStore:
         return int(self.defaults["results"].get("candidates", 50))
 
     @property
+    def evidence(self):
+        """When a passage counts as genuinely relevant in meaning without sharing a keyword with the query."""
+        from .search import Evidence
+
+        r = self.defaults["results"]
+        return Evidence(float(r.get("strong_reranker_score", 2.0)), float(r.get("strong_cosine", 0.45)))
+
+    @property
     def chunking(self) -> dict:
         return dict(self.defaults["chunking"])
 
     @property
     def excel(self) -> dict:
         return dict(self.defaults["excel"])
+
+    @property
+    def images(self) -> dict:
+        return dict(self.defaults.get("images") or {})
 
     @property
     def batch_size(self) -> int:

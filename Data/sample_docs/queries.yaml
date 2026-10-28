@@ -61,3 +61,28 @@ queries:
   - query: price of a box of A4 paper
     expected: Supplier-Price-List-2026.xlsx
     kind: excel
+
+# Queries that match no sample document: the search must return no result at all (no padding with weak matches).
+unrelated:
+  - recipe for chocolate cake
+  - football world cup winners
+  - quantum entanglement in physics
+  - XR-900 battery replacement
+
+# Image search: the expected document must be the first result and show the image with this caption.
+images:
+  - query: sm3-wiring-diagram.png
+    expected: SM-3-Smart-Meter-Datasheet.docx
+    caption: "Figure 1: SM-3 terminal wiring diagram"
+  - query: wiring diagram of the meter
+    expected: SM-3-Smart-Meter-Datasheet.docx
+    caption: "Figure 1: SM-3 terminal wiring diagram"
+  - query: architecture diagram
+    expected: Cloud-Migration-Project-Plan.xlsx
+    caption: "Figure 1: Target cloud architecture diagram"
+  - query: FT-200 front view
+    expected: FT-200-Field-Tablet-Specification.pdf
+    caption: "Figure 1: FT-200 front view"
+  - query: picture of the field tablet
+    expected: FT-200-Field-Tablet-Specification.pdf
+    caption: "Figure 1: FT-200 front view"

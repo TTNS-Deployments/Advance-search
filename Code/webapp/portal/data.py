@@ -37,6 +37,10 @@ def document(doc_id: str, name: str):
     return service().find(doc_id, name)
 
 
+def image_store():
+    return factory.get_image_store()
+
+
 def indexed_count() -> int:
     return sum(1 for d in service().list() if d.status == INDEXED)
 

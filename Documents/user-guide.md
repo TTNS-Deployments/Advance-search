@@ -53,12 +53,18 @@ Each document is scored by its best passage:
   semantic queries is used up). The match % is the similarity between the meaning of your query and the passage
   (cosine similarity, 0 to 1) as a percentage.
 
-Documents under the minimum (20% by default) are hidden. The match % is a **relevance indicator, not a
+A document is suggested only if it contains at least one word of your search (or a closely related word), or if
+the ranker rates its meaning as genuinely relevant. Documents that share nothing with your search are never shown,
+whatever their percentage. Of the rest, only documents that really match are shown: documents under the minimum (30% by default), or under 60% of the
+best result's match, are hidden, so a search often shows just one document. A passage with your exact phrase
+scores higher, and a code, file name, figure number or "quoted phrase" in your query only finds documents that
+contain it. Matching **images** (diagrams, photos, figures) are shown as thumbnails in the result, with their
+caption, page or location; select one to open it full size. The match % is a **relevance indicator, not a
 probability**: 80% does not mean "80% likely to be right". Use it to compare results with each other.
 
 ### When nothing is found
 
-- **No close match**: no document scored above the minimum. Describe the topic in other words, use fewer and more
+- **No matching documents found**: no document contains your words or matches their meaning well enough. Describe the topic in other words, use fewer and more
   specific words, or check that the document has been uploaded and shows *Indexed*.
 - **No documents indexed yet**: nothing has been uploaded, or indexing is still running. Admins see an **Upload
   documents** button.
@@ -97,7 +103,7 @@ probability**: 80% does not mean "80% likely to be right". Use it to compare res
 | Setting | Default | Effect |
 |---|---|---|
 | Number of results | 3 | Documents shown per search (1–10) |
-| Minimum match % | 20 | Documents below it are hidden |
+| Minimum match % | 30 | Documents below it are hidden |
 | Example queries | 5 | Suggestions under the search bar, one per line |
 | Welcome text | – | Shown under the title on the search page |
 
@@ -118,7 +124,8 @@ procurement, onboarding, product datasheets and a project plan.
    - `who approves a purchase over five lakh` → *Procurement-Approval-Matrix.xlsx*, sheet *Approval limits*: a spreadsheet row, with the column headers.
    - `how long does the device last on one charge` → *FT-200-Field-Tablet-Specification.pdf*.
    - `when can old security camera recordings be thrown away` → *Records-Retention-Schedule.pdf* (CCTV, 30 days).
-   - `football world cup results` → *No close match*.
+   - `football world cup results` → *No matching documents found*.
+   - `architecture diagram`, `sm3-wiring-diagram.png` or `figure 1` → the document with the diagram and its thumbnail.
 
    These results were checked in local mode. With Azure OpenAI and the semantic ranker the match percentages
    differ and the order of the lower results can change.

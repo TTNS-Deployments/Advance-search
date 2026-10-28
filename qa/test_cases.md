@@ -69,7 +69,7 @@ these IDs (`test_UI05_...`).
 | UI13 | Critical | Result cards | Rank, file icon, badge, location, highlighted snippet, meter width = %, tooltip with source, sorted scores |
 | UI14 | Medium | Meter colour | Colour follows the value |
 | UI15 | High | Copy link, popover | Link copied to clipboard with toast; popover opens and closes with Escape |
-| UI16 | High | No close match | Friendly state with three tips |
+| UI16 | High | No matching documents found | Friendly state with three tips |
 | UI17 | High | Keyboard, examples, recent | `/` focuses, Enter searches and updates the URL, recent searches stored, example chip runs, clear button clears |
 | UI18 | Medium | Deep link | `/?q=` renders results on the server, meters animate |
 | UI19 | High | Settings | Number of results applies; validation error; reset |

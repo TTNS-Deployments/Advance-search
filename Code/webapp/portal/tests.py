@@ -395,7 +395,7 @@ class SearchTests(AppTestCase):
     def test_no_close_match_state(self):
         self.seed()
         response = self.client.get("/search/results", {"q": "football world cup"}, HTTP_HX_REQUEST="true")
-        self.assertContains(response, "No close match")
+        self.assertContains(response, "No matching documents found")
 
     def test_empty_query(self):
         self.seed()
@@ -429,6 +429,95 @@ class SearchTests(AppTestCase):
             user = self.sign_in("User", Client())
             self.assertNotContains(user.get("/search/results", {"q": "leave"}, HTTP_HX_REQUEST="true"),
                                    "index unreachable")
+
+
+def make_pdf_with_figure():
+    """A PDF page with a 400 x 220 diagram, its caption below and text above."""
+    from PIL import Image, ImageDraw
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
+    image = Image.new("RGB", (400, 220), "white")
+    ImageDraw.Draw(image).rectangle((10, 10, 390, 210), outline="#2f4a8a", width=4)
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    c.drawString(50, 800, "Platform design: meters send readings to the gateway.")
+    c.drawImage(ImageReader(image), 50, 580, 300, 165)
+    c.drawString(50, 560, "Figure 3: System architecture diagram")
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
+class ImageSearchTests(AppTestCase):
+    def seed_images(self):
+        self.seed()
+        self.assertEqual(self.upload("Platform-Design.pdf", make_pdf_with_figure()).status_code, 200)
+
+    def test_api_returns_matching_image_with_url(self):
+        self.seed_images()
+        body = self.client.get("/api/search", {"q": "architecture diagram"}).json()
+        self.assertEqual([r["fileName"] for r in body["results"]], ["Platform-Design.pdf"])
+        [image] = body["results"][0]["images"]
+        self.assertEqual(image["caption"], "Figure 3: System architecture diagram")
+        self.assertEqual((image["page"], image["location"], image["width"], image["height"]), (1, "Page 1", 400, 220))
+        self.assertEqual(image["fileName"], "Platform-Design.pdf")
+        self.assertTrue(image["url"].startswith("http://testserver/documents/"))
+        response = self.client.get(image["url"].removeprefix("http://testserver"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "image/png")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertTrue(b"".join(response.streaming_content).startswith(b"\x89PNG"))
+        documents = self.client.get("/api/documents").json()["documents"]
+        self.assertEqual(next(d["images"] for d in documents if d["fileName"] == "Platform-Design.pdf"), 1)
+
+    def test_results_page_shows_the_image(self):
+        self.seed_images()
+        response = self.client.get("/search/results", {"q": "figure 3"}, HTTP_HX_REQUEST="true")
+        self.assertContains(response, 'class="result-images"')
+        self.assertContains(response, '<img src="/documents/')
+        self.assertContains(response, "Figure 3: System architecture diagram")
+        self.assertContains(response, "Page 1 · 400×220")
+        self.assertNotContains(response, "Leave-Policy.pdf")  # only the matching document
+        text_only = self.client.get("/search/results", {"q": "annual leave entitlement"}, HTTP_HX_REQUEST="true")
+        self.assertNotContains(text_only, 'class="result-images"')
+
+    def test_image_access(self):
+        self.seed_images()
+        image = self.client.get("/api/search", {"q": "architecture diagram"}).json()["results"][0]["images"][0]
+        path = image["url"].removeprefix("http://testserver")
+        user = self.sign_in("User", Client())
+        self.assertEqual(user.get(path).status_code, 200)
+        self.assertEqual(Client().get(path).status_code, 302)  # signed out: to the sign-in page
+        doc_id = image["docId"]
+        for bad in (f"/documents/{doc_id}/images/{'0' * 16}", f"/documents/{doc_id}/images/..%2Fx",
+                    f"/documents/{'z' * 32}/images/{image['imageId']}"):
+            self.assertEqual(self.client.get(bad).status_code, 404, bad)
+        self.client.post(reverse("portal:delete", args=[doc_id]), {"name": "Platform-Design.pdf"})
+        self.assertEqual(self.client.get(path).status_code, 404)  # deleted with its document
+
+    def test_unrelated_query_returns_no_results(self):
+        self.seed_images()
+        body = self.client.get("/api/search", {"q": "football world cup"}).json()
+        self.assertEqual((body["count"], body["results"], body["message"]), (0, [], "No matching documents found."))
+
+    def test_relative_cutoff_setting(self):
+        self.seed_images()
+        response = self.client.post("/settings", {"top_n": "10", "min_match_percent": "0", "relative_cutoff_percent": "0",
+                                                  "example_queries": "", "welcome_text": ""})
+        self.assertRedirects(response, "/settings", fetch_redirect_response=False)
+        loose = self.client.get("/api/search?q=days").json()  # in two documents
+        self.assertEqual(loose["relativeCutoffPercent"], 0)
+        self.client.post("/settings", {"top_n": "10", "min_match_percent": "0", "relative_cutoff_percent": "100",
+                                       "example_queries": "", "welcome_text": ""})
+        strict = self.client.get("/api/search?q=days").json()
+        self.assertGreaterEqual(loose["count"], 2)
+        self.assertLess(strict["count"], loose["count"])
+        self.assertGreater(strict["hiddenBelowRelative"], 0)
+        self.assertContains(self.client.get("/settings"), 'name="relative_cutoff_percent"')
+        response = self.client.post("/settings", {"top_n": "3", "min_match_percent": "20", "relative_cutoff_percent": "120",
+                                                  "example_queries": "", "welcome_text": ""})
+        self.assertContains(response, "Relative cutoff % must be between 0 and 100.", status_code=400)
 
 
 # ---------------------------------------------------------------------------- document actions
@@ -580,3 +669,18 @@ class StaticFilesTests(SimpleTestCase):
         self.assertTrue((root / "static" / "vendor" / "htmx-2.0.4.min.js").is_file())
         base = (root / "templates" / "base.html").read_text()
         self.assertNotIn("https://", base.replace("https://", "", 0) if False else base.split("<body")[0])
+
+
+class EvidenceTests(AppTestCase):
+    """A document is suggested only if it shares a keyword with the query or matches its meaning strongly."""
+
+    def test_documents_without_keyword_or_strong_meaning_are_not_suggested(self):
+        self.seed()
+        self.client.post("/settings", {"top_n": "10", "min_match_percent": "0", "relative_cutoff_percent": "0",
+                                       "example_queries": "", "welcome_text": ""})
+        body = self.client.get("/api/search", {"q": "invoices"}).json()
+        self.assertEqual([r["fileName"] for r in body["results"]], ["Retention.pdf"])
+        self.assertEqual(body["results"][0]["matchedTerms"], ["invoices"])  # as typed
+        self.assertGreater(body["hiddenNoEvidence"], 0)  # the other documents: no keyword, weak meaning
+        body = self.client.get("/api/search", {"q": "chocolate cake recipe"}).json()
+        self.assertEqual((body["count"], body["message"]), (0, "No matching documents found."))

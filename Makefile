@@ -7,7 +7,7 @@ include .env
 export
 endif
 
-.PHONY: help setup seed run test test-ui eval lint package reset docker-up docker-down screenshots
+.PHONY: help setup seed reindex run test test-ui eval lint package reset docker-up docker-down screenshots
 
 help:            ## Show this help
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -19,6 +19,9 @@ setup:           ## Create .venv and install everything (Python 3.12 recommended
 
 seed:            ## Index the sample documents (local mode)
 	$(PY) -m advancesearch seed
+
+reindex:         ## Process every document again (text and images) without dropping the index
+	$(PY) -m advancesearch reindex --keep-index
 
 run:             ## Start the web app on http://localhost:8000
 	cd $(WEB) && ../../$(PY) manage.py runserver 0.0.0.0:8000

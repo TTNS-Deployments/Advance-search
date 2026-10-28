@@ -174,7 +174,7 @@ var names = {
   vnet: '${baseName}-vnet'
 }
 var allTags = union(tags, { solution: 'advance-search', environment: environmentName })
-var containers = ['documents', 'config', 'code-packages']
+var containers = ['documents', 'config', 'extracted-images', 'code-packages']
 var createPlan = empty(existingAppServicePlanId)
 var planTiers = {
   B1: 'Basic'
@@ -401,6 +401,7 @@ resource web 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'AZURE_STORAGE_ACCOUNT_URL', value: storage.properties.primaryEndpoints.blob }
         { name: 'CONTAINER_DOCUMENTS', value: 'documents' }
         { name: 'CONTAINER_CONFIG', value: 'config' }
+        { name: 'CONTAINER_IMAGES', value: 'extracted-images' }
         { name: 'SEARCH_ENDPOINT', value: 'https://${names.search}.search.windows.net' }
         { name: 'SEARCH_INDEX_NAME', value: searchIndexName }
         { name: 'AZURE_OPENAI_ENDPOINT', value: openAi.properties.endpoint }

@@ -30,6 +30,9 @@ def search(request):
     body = response.to_dict()
     for item in body["results"]:
         item["openUrl"] = request.build_absolute_uri(reverse("portal:open", args=[item["docId"], item["fileName"]]))
+        for image in item["images"]:
+            image["url"] = request.build_absolute_uri(reverse("portal:image", args=[image["docId"], image["imageId"]]))
+            image["fileName"] = item["fileName"]
     return JsonResponse(body)
 
 
@@ -39,7 +42,7 @@ def documents(request):
     docs = data.service().list()
     return JsonResponse({"count": len(docs), "documents": [{
         "docId": d.doc_id, "fileName": d.name, "fileType": d.file_type, "size": d.size, "status": d.status,
-        "error": d.error, "chunks": d.chunks, "uploadedBy": d.uploaded_by,
+        "error": d.error, "chunks": d.chunks, "images": d.images, "uploadedBy": d.uploaded_by,
         "uploadedAt": d.uploaded_at.isoformat() if d.uploaded_at else None,
         "indexedAt": d.indexed_at.isoformat() if d.indexed_at else None,
     } for d in docs]})

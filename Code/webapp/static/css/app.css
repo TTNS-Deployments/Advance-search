@@ -351,6 +351,14 @@ img, svg { max-width: 100%; }
 .snippet-xlsx { white-space: pre-line; }
 .snippet { color: var(--text); font-size: 0.95rem; margin: 0 0 14px; overflow-wrap: anywhere; }
 .result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.result-images { list-style: none; margin: -4px 0 14px; padding: 0; display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.result-image { margin: 0; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); min-width: 0; }
+.result-image a { display: block; border-radius: 6px; overflow: hidden; background: #fff; }
+.result-image img { display: block; width: 100%; height: 130px; object-fit: contain; }
+.result-image-caption { margin: 8px 0 2px; font-size: 0.84rem; font-weight: 600; color: var(--text); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.result-image-meta { margin: 0; font-size: 0.76rem; color: var(--muted); }
 
 .match { position: relative; padding-top: 4px; border-radius: 10px; outline: none; }
 .match-value { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; margin-bottom: 8px; }

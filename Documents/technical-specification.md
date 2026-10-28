@@ -95,8 +95,33 @@ similarity over all stored vectors, reciprocal rank fusion (k = 60), and a stand
 4. Otherwise (ranker disabled, free quota used up, or partial response):
    `match% = round(clamp(cosine, 0, 1) × 100)`, `scoreSource = "vector"`. In Azure the cosine comes from a
    vector-only query of the same vector: with the cosine metric, `@search.score = 1 / (2 − cosine)`.
-5. Documents below `min_match_percent` (default 20) are hidden; the rest are sorted by match % and the top
-   `top_n` (default 3) are shown.
+5. Exact wording: a passage (or file name) containing the whole query as a phrase gets +10 points (max 100).
+   A query that names something specific — a "quoted phrase", a code with letters and digits (`FT-200`), a label
+   (`figure 3`, `table 2`) or a file name (`wiring-diagram.png`) — only matches documents that contain it; when
+   the query is nothing but that name, a passage containing it scores at least 50%.
+6. Evidence: a document is kept only if it contains at least one keyword of the query (stemmed; stopwords,
+   one- and two-letter words and filler words such as "document" or "find" do not count), or a term from the
+   same `related_terms` group, in a retrieved passage or its file name, **or** if one of its passages is
+   genuinely relevant in meaning: semantic ranker score ≥ `results.strong_reranker_score` (2.0, "relevant" on the
+   ranker's 0–4 scale) or, without the ranker, cosine ≥ `results.strong_cosine` (0.45). Vector search always returns
+   the nearest passages and the ranker scores unrelated ones at about 1–2 (25–50%), so without this rule unrelated
+   documents would appear. The API reports the keywords found (`matchedTerms`) and the number hidden
+   (`hiddenNoEvidence`).
+7. Precision filters, in order: documents below `min_match_percent` (default 30) are hidden; documents below
+   `relative_cutoff_percent` (default 60) of the best document's match % are hidden; at most `top_n` (default 3)
+   are shown, sorted by match %. Nothing is padded: no match returns no result and the API adds
+   `"message": "No matching documents found."`.
+8. Images: each extracted image is indexed as one passage of its document (`imageId` set). A result lists up to
+   4 of its matching image passages that pass the same thresholds, with metadata from the image manifest.
+
+**Images.** During ingestion embedded images are extracted (PDF via pypdf with their position on the page, Word and
+Excel from their zip parts with alt text and anchors), converted to PNG when a browser cannot show them, filtered
+(under 50×50 px or drawn under 50×50 pt, aspect ratio over 12, repeated on 3+ pages, duplicates) and saved as
+`extracted-images/<docId>/<imageId>.<ext>` with `<docId>/images.json` (image id, document, page or location,
+path, original name, size, format, caption, alt text). The indexed text is: original name (if meaningful),
+location and document name, caption (`Figure N…` near the image, or the Word *Caption* style), alt text, OCR text
+(optional: `pytesseract` + `tesseract`), and 3 lines/paragraphs/rows above and below. `GET
+/documents/<docId>/images/<imageId>` streams an image (roles: Admin, User).
 
 The percentage is a relevance indicator, not a probability. When the semantic ranker fails with an error, the app
 retries without it and does not try it again for 10 minutes.

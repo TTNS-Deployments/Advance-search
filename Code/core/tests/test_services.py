@@ -14,7 +14,7 @@ from advancesearch.settings_store import SettingsError, validate
 
 def test_defaults_come_from_search_yaml():
     values = factory.get_settings_store().effective()
-    assert values["top_n"] == 3 and values["min_match_percent"] == 20
+    assert values["top_n"] == 3 and values["min_match_percent"] == 30 and values["relative_cutoff_percent"] == 60
     assert "how many days off do I get" in values["example_queries"]
     assert values["welcome_text"]
 
@@ -33,6 +33,7 @@ def test_overrides_saved_in_config_container():
 @pytest.mark.parametrize("values,message", [
     ({"top_n": 0}, "between 1 and 10"), ({"top_n": 11}, "between 1 and 10"), ({"top_n": "x"}, "whole number"),
     ({"min_match_percent": 101}, "between 0 and 100"), ({"min_match_percent": -1}, "between 0 and 100"),
+    ({"relative_cutoff_percent": 101}, "between 0 and 100"), ({"relative_cutoff_percent": "x"}, "whole number"),
     ({"example_queries": [str(i) for i in range(13)]}, "at most 12"), ({"welcome_text": "x" * 501}, "500"),
 ])
 def test_settings_validation(values, message):
@@ -201,12 +202,13 @@ def test_index_definition(azure_index):
     definition = azure_index.definition()
     fields = {f.name: f for f in definition.fields}
     assert list(fields) == ["id", "docId", "fileName", "fileType", "location", "chunkIndex", "uploadedAt",
-                            "content", "contentVector"]
+                            "content", "imageId", "contentVector"]
     assert fields["id"].key and fields["docId"].filterable
     assert fields["fileType"].filterable and fields["fileType"].facetable
     assert fields["uploadedAt"].filterable and fields["uploadedAt"].sortable
     assert fields["content"].searchable and fields["content"].analyzer_name == "en.microsoft"
     assert fields["contentVector"].vector_search_dimensions == 3
+    assert fields["imageId"].filterable and not fields["imageId"].searchable
     assert definition.vector_search.algorithms[0].parameters.metric == "cosine"
     config = definition.semantic_search.configurations[0]
     assert config.prioritized_fields.title_field.field_name == "fileName"
@@ -262,6 +264,31 @@ def test_index_dimension_mismatch_is_reported(azure_index):
     with pytest.raises(IndexMismatch):
         azure_index.upload([{"id": "x"}])
     assert IndexStatus(True, 3, 3).warning == ""
+
+
+def test_existing_index_gets_the_image_field_added(azure_index):
+    """An index created before image search is updated in place (a new field keeps every document)."""
+    updated = []
+    azure_index._ensured = None
+    azure_index.index_client = SimpleNamespace(create_or_update_index=updated.append)
+    old_fields = [SimpleNamespace(name=n, vector_search_dimensions=3 if n == "contentVector" else None)
+                  for n in ("id", "docId", "content", "contentVector")]
+    azure_index._existing = lambda: SimpleNamespace(fields=old_fields, semantic_search=object())
+    assert not azure_index.ensure().mismatch
+    assert len(updated) == 1 and "imageId" in [f.name for f in updated[0].fields]
+    azure_index._ensured = None
+    azure_index._existing = lambda: SimpleNamespace(fields=[*old_fields, SimpleNamespace(name="imageId")],
+                                                     semantic_search=object())
+    azure_index.ensure()
+    assert len(updated) == 1  # already has it: unchanged
+
+
+def test_azure_hits_carry_the_image_id(azure_index):
+    row = {**_row(1, reranker=3.0), "imageId": "a" * 16}
+    azure_index.client = FakeSearchClient([row, _row(2, reranker=2.0)])
+    hits = azure_index.search("diagram", [0.1, 0.2, 0.3], 50)
+    assert [h.image_id for h in hits] == ["a" * 16, ""]
+    assert "imageId" in azure_index.client.requests[0]["select"]
 
 
 def test_local_index_dimension_mismatch(tmp_path):

@@ -1,5 +1,6 @@
 import logging
 import mimetypes
+import re
 from urllib.parse import quote
 
 from django.conf import settings
@@ -11,6 +12,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from accounts.decorators import permission_required
 from advancesearch.extract import CONTENT_TYPES, FILE_TYPE_LABELS
+from advancesearch.images import WEB_FORMATS
 from advancesearch.index import IndexMismatch
 from advancesearch.ingest import STATUSES, UploadError, doc_id_for, parse_iso
 from advancesearch.settings_store import SettingsError
@@ -56,6 +58,7 @@ def _search_context(request, query: str) -> dict:
             "size": doc.size if doc else None, "uploaded": parse_iso(r.uploaded_at),
             "open_url": reverse("portal:open", args=[r.doc_id, r.file_name]),
             "source_label": "semantic ranker" if r.score_source == "semantic" else "vector similarity",
+            "images": [{"i": i, "url": reverse("portal:image", args=[i.doc_id, i.image_id])} for i in r.images],
         })
     ctx.update(response=response, results=results)
     if results:
@@ -105,6 +108,26 @@ def open_document(request, doc_id, name):
     filename = name.rsplit("/", 1)[-1]
     response["Content-Disposition"] = f"{disposition}; filename=\"{filename}\"; filename*=UTF-8''{quote(filename)}"
     response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@require_GET
+@permission_required("open_documents")
+def document_image(request, doc_id, image_id):
+    """Streams an image extracted from a document (from the images container, never exposed directly)."""
+    if not re.fullmatch(r"[0-9a-f]{32}", doc_id):
+        raise Http404
+    record = data.image_store().get(doc_id, image_id)
+    if record is None or record.get("format") not in WEB_FORMATS:
+        raise Http404
+    try:
+        stream = data.image_store().iter_bytes(record)
+    except FileNotFoundError:
+        raise Http404 from None
+    response = StreamingHttpResponse(stream, content_type=WEB_FORMATS[record["format"]])
+    response["Content-Length"] = str(record.get("bytes") or "")
+    response["Cache-Control"] = "private, max-age=3600"
     response["X-Content-Type-Options"] = "nosniff"
     return response
 
@@ -249,8 +272,8 @@ def settings_page(request):
             messages.success(request, "Settings were reset to the defaults in Config/search.yaml.")
             return redirect("portal:settings")
         try:
-            store.save({k: request.POST.get(k, "") for k in ("top_n", "min_match_percent", "example_queries",
-                                                              "welcome_text")})
+            store.save({k: request.POST.get(k, "") for k in ("top_n", "min_match_percent", "relative_cutoff_percent",
+                                                              "example_queries", "welcome_text") if k in request.POST})
         except SettingsError as exc:
             error = str(exc)
         else:
@@ -258,7 +281,9 @@ def settings_page(request):
             return redirect("portal:settings")
     values = store.effective()
     if request.method == "POST" and error:
-        values = {**values, **{k: request.POST.get(k, "") for k in ("top_n", "min_match_percent", "welcome_text")},
+        values = {**values, **{k: request.POST.get(k, "") for k in ("top_n", "min_match_percent",
+                                                                     "relative_cutoff_percent", "welcome_text")
+                               if k in request.POST},
                   "example_queries": request.POST.get("example_queries", "").splitlines()}
     return render(request, "portal/settings.html", {"values": values, "error": error, "system": data.system_info()},
                   status=400 if error else 200)

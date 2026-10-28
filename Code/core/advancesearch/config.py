@@ -31,6 +31,16 @@ def _env_int(name: str, default: int) -> int:
         raise ValueError(f"{name} must be a whole number, got {value!r}") from None
 
 
+def _env_percent(name: str) -> int | None:
+    """An optional 0-100 override; empty = use Config/search.yaml."""
+    if not _env(name):
+        return None
+    value = _env_int(name, 0)
+    if not 0 <= value <= 100:
+        raise ValueError(f"{name} must be between 0 and 100, got {value}")
+    return value
+
+
 MODES = ("local", "azure")
 
 
@@ -60,6 +70,7 @@ class Settings:
     storage_account_url: str = ""
     container_documents: str = "documents"
     container_config: str = "config"
+    container_images: str = "extracted-images"
 
     # Search index
     search_backend: str = "local"
@@ -75,8 +86,14 @@ class Settings:
     embedding_deployment: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
 
+    # Search precision overrides of Config/search.yaml (None = use the file); the Settings page overrides both
+    min_match_percent: int | None = None
+    relative_cutoff_percent: int | None = None
+
     # Ingestion
     max_upload_mb: int = 20
+    image_extraction: bool = True      # extract embedded images and make them searchable
+    image_ocr: str = "auto"            # auto (use Tesseract if installed) | off
     worker_mode: str = "thread"        # thread | inline | off
     sync_interval_seconds: int = 300
     processing_stale_minutes: int = 15
@@ -104,6 +121,12 @@ def get_settings() -> Settings:
     worker_mode = _env("INGEST_WORKER", "thread").lower()
     if worker_mode not in {"thread", "inline", "off"}:
         raise ValueError(f"Unknown INGEST_WORKER {worker_mode!r} (thread, inline or off)")
+    image_extraction = _env("IMAGE_EXTRACTION", "on").lower()
+    if image_extraction not in {"on", "off"}:
+        raise ValueError(f"Unknown IMAGE_EXTRACTION {image_extraction!r} (on or off)")
+    image_ocr = _env("IMAGE_OCR", "auto").lower()
+    if image_ocr not in {"auto", "off"}:
+        raise ValueError(f"Unknown IMAGE_OCR {image_ocr!r} (auto or off)")
 
     return Settings(
         mode=mode,
@@ -114,6 +137,7 @@ def get_settings() -> Settings:
         storage_account_url=_env("AZURE_STORAGE_ACCOUNT_URL"),
         container_documents=_env("CONTAINER_DOCUMENTS", "documents"),
         container_config=_env("CONTAINER_CONFIG", "config"),
+        container_images=_env("CONTAINER_IMAGES", "extracted-images"),
         search_backend=_env("SEARCH_BACKEND", "azure" if azure else "local").lower(),
         search_endpoint=_env("SEARCH_ENDPOINT").rstrip("/"),
         search_api_key=_env("SEARCH_API_KEY"),
@@ -124,7 +148,11 @@ def get_settings() -> Settings:
         openai_api_version=_env("AZURE_OPENAI_API_VERSION", "2024-10-21"),
         embedding_deployment=_env("EMBEDDING_DEPLOYMENT", "text-embedding-3-small"),
         embedding_dimensions=_env_int("EMBEDDING_DIMENSIONS", 1536),
+        min_match_percent=_env_percent("SEARCH_MIN_MATCH_PERCENT"),
+        relative_cutoff_percent=_env_percent("SEARCH_RELATIVE_CUTOFF_PERCENT"),
         max_upload_mb=_env_int("MAX_UPLOAD_MB", 20),
+        image_extraction=image_extraction == "on",
+        image_ocr=image_ocr,
         worker_mode=worker_mode,
         sync_interval_seconds=_env_int("SYNC_INTERVAL_SECONDS", 300),
         processing_stale_minutes=_env_int("PROCESSING_STALE_MINUTES", 15),

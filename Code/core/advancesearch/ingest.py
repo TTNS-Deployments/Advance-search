@@ -6,6 +6,10 @@ Status lives in blob metadata on the document itself (no database)::
                          -> no_text   (no extractable text, for example a scanned PDF)
                          -> failed    (with an error message)
 
+Embedded images are extracted in the same step (images.py): saved to the images container and indexed as one
+passage each. A document indexed before image extraction existed (no ``images`` in its metadata) is processed
+again by the start-up scan and by *Sync from storage*.
+
 A process claims a document by replacing its metadata with ``status=processing`` conditionally on the ETag it
 read, so two processes can never ingest the same file at the same time.
 """
@@ -27,7 +31,8 @@ from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 
 from .chunk import ChunkOptions
-from .extract import CONTENT_TYPES, FILE_TYPES, ExtractionError, extract_passages, file_type_for
+from .extract import CONTENT_TYPES, FILE_TYPES, ExtractionError, Passage, extract_passages, file_type_for
+from .images import ImageOptions, extract_images
 from .storage import PreconditionFailed
 
 log = logging.getLogger(__name__)
@@ -138,6 +143,7 @@ class DocumentInfo:
     uploaded_by: str
     indexed_at: datetime | None
     content_hash: str
+    images: int = 0
 
     @property
     def in_progress(self) -> bool:
@@ -154,12 +160,15 @@ class UploadResult:
 class DocumentService:
     """Every document operation used by the web app, the worker and the CLI."""
 
-    def __init__(self, blobs, index, embedder, settings, settings_store):
+    def __init__(self, blobs, index, embedder, settings, settings_store, images=None):
+        from .images import ImageStore
+
         self.blobs = blobs
         self.index = index
         self.embedder = embedder
         self.settings = settings
         self.settings_store = settings_store
+        self.images = images or ImageStore(blobs, settings.container_images)
         self.container = settings.container_documents
 
     # ------------------------------------------------------------------ listing
@@ -170,14 +179,15 @@ class DocumentService:
             status = QUEUED
         try:
             chunks = int(meta.get("chunks") or 0)
+            images = int(meta.get("images") or 0)
         except ValueError:
-            chunks = 0
+            chunks = images = 0
         return DocumentInfo(
             name=blob.name, doc_id=doc_id_for(blob.name), file_type=file_type_for(blob.name) or "",
             size=blob.size, status=status, error=meta.get("error", ""), chunks=chunks,
             uploaded_at=parse_iso(meta.get("uploaded_at", "")) or blob.last_modified,
             uploaded_by=meta.get("uploaded_by", "") or "storage", indexed_at=parse_iso(meta.get("indexed_at", "")),
-            content_hash=meta.get("content_hash", ""),
+            content_hash=meta.get("content_hash", ""), images=images,
         )
 
     def list(self) -> list[DocumentInfo]:
@@ -240,12 +250,17 @@ class DocumentService:
         limit = timedelta(minutes=self.settings.processing_stale_minutes)
         return claimed_at is None or datetime.now(timezone.utc) - claimed_at > limit
 
+    def needs_image_extraction(self, meta: dict) -> bool:
+        """Indexed before image extraction existed: process it again so its images become searchable."""
+        return (meta.get("status") == INDEXED and "images" not in meta and self.settings.image_extraction
+                and self.image_options.enabled)
+
     def needs_processing(self, doc: DocumentInfo, meta: dict, include_finished: bool) -> bool:
         if doc.status == QUEUED:
             return True
         if doc.status == PROCESSING:
             return self.is_stale_claim(meta)
-        return include_finished and doc.status in (FAILED, NO_TEXT)
+        return include_finished and (doc.status in (FAILED, NO_TEXT) or self.needs_image_extraction(meta))
 
     def pending(self, include_finished: bool = True) -> list[str]:
         """Names to (re)process: everything not indexed, or only new and stale ones (periodic scan)."""
@@ -264,7 +279,7 @@ class DocumentService:
         meta = blob.metadata or {}
         if meta.get("status") == PROCESSING and not self.is_stale_claim(meta):
             return False
-        if meta.get("status") == INDEXED:
+        if meta.get("status") == INDEXED and not self.needs_image_extraction(meta):
             return False
         try:
             self._update(name, {"status": PROCESSING, "claimed_by": WORKER_ID, "claimed_at": now_iso(),
@@ -280,33 +295,45 @@ class DocumentService:
             return None
         doc_id = doc_id_for(name)
         file_type = file_type_for(name)
+        images = 0
         try:
-            status, chunks, error, digest = self._ingest(name, doc_id, file_type)
+            status, chunks, images, error, digest = self._ingest(name, doc_id, file_type)
         except FileNotFoundError:
-            self.index.delete_document(doc_id)  # deleted while processing
+            self._remove_indexed(doc_id)  # deleted while processing
             return None
         except Exception as exc:  # noqa: BLE001 - every failure is recorded on the document
             log.exception("Ingestion of %s failed", name)
             try:
-                self.index.delete_document(doc_id)
+                self._remove_indexed(doc_id)
             except Exception:  # noqa: BLE001
                 log.warning("Could not remove partial passages of %s", name, exc_info=True)
             status, chunks, error, digest = FAILED, 0, _short_error(exc), None
-        changes = {"status": status, "chunks": chunks, "error": error or None, "claimed_by": None,
-                   "claimed_at": None, "indexed_at": now_iso() if status == INDEXED else None}
+        changes = {"status": status, "chunks": chunks, "images": images, "error": error or None,
+                   "claimed_by": None, "claimed_at": None, "indexed_at": now_iso() if status == INDEXED else None}
         if digest:
             changes["content_hash"] = digest
         try:
             self._update(name, changes)
         except FileNotFoundError:
-            self.index.delete_document(doc_id)
+            self._remove_indexed(doc_id)
             return None
-        log.info("%s: %s (%s passages)", name, status, chunks)
+        log.info("%s: %s (%s passages, %s images)", name, status, chunks, images)
         return status
+
+    def _remove_indexed(self, doc_id: str) -> int:
+        """The document's passages and its extracted images."""
+        removed = self.index.delete_document(doc_id)
+        self.images.delete_document(doc_id)
+        return removed
+
+    @property
+    def image_options(self) -> ImageOptions:
+        return ImageOptions.from_config(self.settings_store.images, self.settings.image_extraction,
+                                        self.settings.image_ocr)
 
     def _ingest(self, name: str, doc_id: str, file_type: str | None):
         if not file_type:
-            return FAILED, 0, "Unsupported file type.", None
+            return FAILED, 0, 0, "Unsupported file type.", None
         blob = self.blobs.info(self.container, name)
         if blob is None:
             raise FileNotFoundError(name)
@@ -320,12 +347,12 @@ class DocumentService:
             try:
                 check_content(file_type, tmp)
             except UploadError as exc:
-                return FAILED, 0, str(exc), digest
+                return FAILED, 0, 0, str(exc), digest
             for other in self.list():
                 if other.name != name and other.content_hash == digest and other.status == INDEXED:
-                    return FAILED, 0, f"Duplicate content: already indexed as {other.name}.", digest
+                    return FAILED, 0, 0, f"Duplicate content: already indexed as {other.name}.", digest
 
-            self.index.delete_document(doc_id)  # replace any earlier version
+            self._remove_indexed(doc_id)  # replace any earlier version
             opts = ChunkOptions.from_config(self.settings_store.chunking)
             batch_size = self.settings_store.batch_size
             batch: list = []
@@ -340,24 +367,41 @@ class DocumentService:
                 if batch:
                     count = self._index_batch(batch, count, doc_id, name, file_type, uploaded_iso)
             except ExtractionError as exc:
-                return FAILED, 0, str(exc), digest
+                return FAILED, 0, 0, str(exc), digest
+            texts = count
+            images = self._extract_images(Path(tmp.name), doc_id, name, file_type)
+            image_passages = [p for p in images if p.text]
+            for i in range(0, len(image_passages), batch_size):
+                count = self._index_batch(image_passages[i:i + batch_size], count, doc_id, name, file_type,
+                                          uploaded_iso)
         if count == 0:
-            return NO_TEXT, 0, NO_TEXT_MESSAGE, digest
-        return INDEXED, count, "", digest
+            return NO_TEXT, 0, len(images), NO_TEXT_MESSAGE, digest
+        if texts == 0:
+            log.info("%s has no text layer; only its images are searchable", name)
+        return INDEXED, count, len(images), "", digest
+
+    def _extract_images(self, path: Path, doc_id: str, name: str, file_type: str) -> list[Passage]:
+        """Save the document's images and return one passage per image (empty text: nothing describes it)."""
+        opts = self.image_options
+        images = extract_images(path, file_type, opts, self.settings_store.excel)
+        if not images:
+            return []
+        self.images.save(doc_id, name, images)
+        return [Passage(img.search_text(opts.max_text_chars, name), img.location, img.image_id) for img in images]
 
     def _index_batch(self, batch, start, doc_id, name, file_type, uploaded_iso) -> int:
         vectors = self.embedder.embed([p.text for p in batch])
         docs = [{
             "id": f"{doc_id}-{start + i:05d}", "docId": doc_id, "fileName": name, "fileType": file_type,
             "location": p.location, "chunkIndex": start + i, "uploadedAt": uploaded_iso, "content": p.text,
-            "contentVector": vec,
+            "contentVector": vec, "imageId": p.image_id,
         } for i, (p, vec) in enumerate(zip(batch, vectors))]
         self.index.upload(docs)
         return start + len(docs)
 
     # ------------------------------------------------------------------ admin actions
     def delete(self, name: str) -> int:
-        removed = self.index.delete_document(doc_id_for(name))
+        removed = self._remove_indexed(doc_id_for(name))
         self.blobs.delete(self.container, name)
         log.info("Deleted %s (%s passages)", name, removed)
         return removed
@@ -381,4 +425,4 @@ def get_document_service() -> DocumentService:
     from .config import get_settings
 
     return DocumentService(factory.get_blob_store(), factory.get_index(), factory.get_embedder(), get_settings(),
-                           factory.get_settings_store())
+                           factory.get_settings_store(), factory.get_image_store())

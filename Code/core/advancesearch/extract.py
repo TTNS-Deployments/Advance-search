@@ -1,7 +1,8 @@
 """Text extraction for PDF (pypdf), Word (python-docx) and Excel (openpyxl), yielding passages lazily.
 
 Each extractor works page by page, section by section or sheet by sheet, so only one part of a file is
-turned into text at a time. There is no OCR: an image-only PDF yields no passages.
+turned into text at a time. There is no OCR of pages: an image-only PDF yields no passages. Embedded images are
+extracted separately (images.py).
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ class ExtractionError(Exception):
 class Passage:
     text: str
     location: str
+    image_id: str = ""   # set for the passage that describes an extracted image (images.py)
 
 
 def file_type_for(name: str) -> str | None:

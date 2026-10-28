@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.48.1.52935",
-      "templateHash": "8508727022158572313"
+      "templateHash": "9302106865967931796"
     },
     "description": "Advance Search: meaning-based search over PDF, Word and Excel documents (web app, Blob Storage, Azure OpenAI embeddings, Azure AI Search, Key Vault, monitoring)."
   },
@@ -361,6 +361,7 @@
     "containers": [
       "documents",
       "config",
+      "extracted-images",
       "code-packages"
     ],
     "createPlan": "[empty(parameters('existingAppServicePlanId'))]",
@@ -717,6 +718,10 @@
             {
               "name": "CONTAINER_CONFIG",
               "value": "config"
+            },
+            {
+              "name": "CONTAINER_IMAGES",
+              "value": "extracted-images"
             },
             {
               "name": "SEARCH_ENDPOINT",

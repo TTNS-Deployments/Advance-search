@@ -5,7 +5,8 @@ Find documents by meaning, not just keywords, on Azure. Every document goes thro
 1. The file (PDF, Word or Excel) is uploaded.
 2. Its text is extracted and split into passages.
 3. Each passage is turned into a vector (embedding) and indexed.
-4. A search combines keyword, vector and semantic ranking and returns the top matching documents, each with a match score.
+4. Embedded images (diagrams, photos, figures) are extracted and made searchable by their name, alt text, caption and nearby text.
+5. A search combines keyword, vector and semantic ranking and returns only the documents that really match, each with a match score and its matching images.
 
 Admins upload and manage documents and change the search settings; Users search and open documents. Both work in a secure web app, where a question such as "how many days off do I get" finds the leave policy even if it never uses those words.
 
@@ -61,7 +62,7 @@ How to use the web app: [User guide](Documents/user-guide.md) · More detail: [A
 
 - **Search:** one search bar with example queries and recent searches; the top documents as cards with the best passage highlighted, its location, a match meter and *Open document* / *Copy link*.
 - **Documents:** drag-and-drop upload of several files with progress, a table with live status (queued, processing, indexed, failed, no text), filters, re-index, delete, *Sync from storage* and *Rebuild index*.
-- **Settings:** number of results, minimum match %, example queries and the welcome text, applied without a redeploy.
+- **Settings:** number of results, minimum match %, relative cutoff %, example queries and the welcome text, applied without a redeploy.
 
 The demo uses one shared password; at sign-in you choose a role:
 
@@ -86,6 +87,7 @@ Local mode replaces every Azure dependency with a local equivalent:
 ```bash
 make setup     # creates .venv and installs everything (Python 3.12 recommended)
 make seed      # indexes the 13 sample documents in Data/sample_docs
+make reindex   # after an upgrade: processes existing documents again, extracting their images
 make run       # http://localhost:8000 – choose Admin or User
 make test
 ```

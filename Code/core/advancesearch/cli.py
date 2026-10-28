@@ -4,8 +4,10 @@
     ingest <path>     upload and index one file or every supported file in a folder
     search "<query>"  run a search and print the top documents
     status            list documents and their status
-    reindex           rebuild the index and process every document again
-    eval              run Data/sample_docs/queries.yaml and report top-3 accuracy
+    reindex           rebuild the index and process every document again (text and images)
+    reindex --keep-index
+                      process every document again without dropping the index first (search keeps working)
+    eval              run Data/sample_docs/queries.yaml: top-3 accuracy, precision, unrelated and image queries
     reset --yes       delete every document, the index and the settings overrides
 """
 
@@ -41,7 +43,8 @@ def _upload_paths(paths: list[Path]) -> int:
             continue
         status = service.process(result.name)
         doc = service.get(result.name)
-        print(f"  {result.name}: {status} ({doc.chunks if doc else 0} passages){' - ' + doc.error if doc and doc.error else ''}")
+        print(f"  {result.name}: {status} ({doc.chunks if doc else 0} passages, {doc.images if doc else 0} images)"
+              f"{' - ' + doc.error if doc and doc.error else ''}")
         failures += status not in ("indexed", "no_text")
     return failures
 
@@ -77,26 +80,41 @@ def cmd_search(args) -> int:
     print(f'{len(response.results)} documents in {response.elapsed_seconds:.2f} s for "{response.query}"')
     for r in response.results:
         snippet = "".join(f"[{t}]" if h else t for t, h in r.snippet)
-        print(f"{r.rank}. {r.file_name}  {r.match_percent}% ({r.score_source})  {r.location}\n   {snippet}")
-    if response.hidden_below_minimum:
-        print(f"({response.hidden_below_minimum} more below the {response.min_match_percent}% minimum)")
+        exact = ", exact" if r.exact_match else ""
+        print(f"{r.rank}. {r.file_name}  {r.match_percent}% ({r.score_source}{exact})  {r.location}\n   {snippet}")
+        for image in r.images:
+            print(f"   image {image.image_id}  {image.match_percent}%  {image.location}  {image.label}")
+    if not response.results:
+        print("No matching documents found.")
+    if response.hidden:
+        print(f"({response.hidden} weaker matches hidden: below {response.min_match_percent}% or below "
+              f"{response.relative_cutoff_percent}% of the best match)")
     return 0
 
 
 def cmd_status(args) -> int:
     docs = _service().list()
     for d in docs:
-        print(f"{d.status:<10} {d.chunks:>4}  {d.name}{'  - ' + d.error if d.error else ''}")
+        print(f"{d.status:<10} {d.chunks:>4} {d.images:>3}  {d.name}{'  - ' + d.error if d.error else ''}")
     print(f"{len(docs)} documents")
     return 0
 
 
 def cmd_reindex(args) -> int:
     service = _service()
-    names = service.rebuild_index()
-    print(f"Index rebuilt; processing {len(names)} documents")
+    if args.keep_index:
+        service.index.ensure()
+        names = [d.name for d in service.list() if d.file_type]
+        for name in names:
+            service.mark_queued(name)
+        print(f"Processing {len(names)} documents again (text and images)")
+    else:
+        names = service.rebuild_index()
+        print(f"Index rebuilt; processing {len(names)} documents")
     for name in names:
-        print(f"  {name}: {service.process(name)}")
+        status = service.process(name)
+        doc = service.get(name)
+        print(f"  {name}: {status} ({doc.chunks if doc else 0} passages, {doc.images if doc else 0} images)")
     return 0
 
 
@@ -107,8 +125,17 @@ def cmd_eval(args) -> int:
     for row in report["rows"]:
         mark = "ok " if row["hit"] else "MISS"
         print(f"{mark} {row['kind']:<10} {row['query']!r} -> expected {row['expected']}, got {row['got']}")
-    print(f"Top-3 accuracy: {report['hits']}/{report['total']} ({report['accuracy']:.0%})")
-    return 0 if report["hits"] == report["total"] else 1
+    for row in report["unrelated"]:
+        print(f"{'ok ' if row['ok'] else 'MISS'} unrelated  {row['query']!r} -> expected nothing, got {row['got']}")
+    for row in report["images"]:
+        print(f"{'ok ' if row['ok'] else 'MISS'} image      {row['query']!r} -> expected {row['expected']} with "
+              f"{row['caption']!r}, got {row['got']} {row['captions']}")
+    print(f"Top-3 accuracy: {report['hits']}/{report['total']} ({report['accuracy']:.0%}); precision: "
+          f"{report['hits']}/{report['shown']} shown documents are the expected one ({report['precision']:.0%})")
+    failed = [r for r in report["unrelated"] + report["images"] if not r["ok"]]
+    print(f"Unrelated queries with no result: {sum(r['ok'] for r in report['unrelated'])}/{len(report['unrelated'])}; "
+          f"image queries: {sum(r['ok'] for r in report['images'])}/{len(report['images'])}")
+    return 0 if report["hits"] == report["total"] and not failed else 1
 
 
 def cmd_reset(args) -> int:
@@ -120,6 +147,7 @@ def cmd_reset(args) -> int:
     service = _service()
     for doc in service.list():
         service.blobs.delete(service.container, doc.name)
+    service.images.clear()
     service.index.reset()
     factory.get_settings_store().reset()
     print("All documents, the index and the settings overrides were deleted.")
@@ -139,7 +167,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--top", type=int, default=None)
     p.set_defaults(fn=cmd_search)
     sub.add_parser("status", help="list documents").set_defaults(fn=cmd_status)
-    sub.add_parser("reindex", help="rebuild the index").set_defaults(fn=cmd_reindex)
+    p = sub.add_parser("reindex", help="process every document again (text and images)")
+    p.add_argument("--keep-index", action="store_true", help="do not drop the index first")
+    p.set_defaults(fn=cmd_reindex)
     sub.add_parser("eval", help="top-3 accuracy on the sample queries").set_defaults(fn=cmd_eval)
     p = sub.add_parser("reset", help="delete everything")
     p.add_argument("--yes", action="store_true")

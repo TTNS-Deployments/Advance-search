@@ -13,6 +13,7 @@ dependencies = [
     "pypdf>=5.0",
     "python-docx>=1.1",
     "openpyxl>=3.1",
+    "pillow>=10.0",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +22,8 @@ azure = [
     "azure-storage-blob>=12.20",
     "azure-search-documents>=11.6",
 ]
+# Optional OCR of extracted images; also needs the tesseract program (apt install tesseract-ocr).
+ocr = ["pytesseract>=0.3.10"]
 # Faster cosine similarity for the local index only. The web app package never needs it.
 local = ["numpy>=1.26"]
 

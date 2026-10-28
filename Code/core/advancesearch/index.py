@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 RRF_K = 60
 SEMANTIC_CONFIG = "default"
 VECTOR_PROFILE = "vector-profile"
-FIELDS = ["id", "docId", "fileName", "fileType", "location", "chunkIndex", "uploadedAt", "content"]
+FIELDS = ["id", "docId", "fileName", "fileType", "location", "chunkIndex", "uploadedAt", "content", "imageId"]
 
 
 class IndexMismatch(RuntimeError):
@@ -48,6 +48,7 @@ class Hit:
     score: float = 0.0                       # fused (RRF) score, for ordering only
     reranker_score: float | None = None      # 0-4, semantic ranker (or its local mock)
     cosine: float | None = None              # vector similarity of the passage to the query
+    image_id: str = ""                       # set when the passage describes an extracted image
 
 
 @dataclass
@@ -118,11 +119,14 @@ class LocalIndex(SearchIndex):
                 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
                 CREATE TABLE IF NOT EXISTS chunks (
                     id TEXT PRIMARY KEY, docId TEXT, fileName TEXT, fileType TEXT, location TEXT,
-                    chunkIndex INTEGER, uploadedAt TEXT, content TEXT, vector BLOB);
+                    chunkIndex INTEGER, uploadedAt TEXT, content TEXT, vector BLOB, imageId TEXT DEFAULT '');
                 CREATE INDEX IF NOT EXISTS chunks_doc ON chunks(docId);
                 CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
                     content, id UNINDEXED, tokenize='porter unicode61');
             """)
+            if "imageId" not in {r[1] for r in conn.execute("PRAGMA table_info(chunks)")}:
+                conn.execute("ALTER TABLE chunks ADD COLUMN imageId TEXT DEFAULT ''")  # index from before images
+                conn.commit()
             self._conn = conn
         return self._conn
 
@@ -159,9 +163,10 @@ class LocalIndex(SearchIndex):
             for c in chunks:
                 vec = array("f", c["contentVector"]).tobytes()
                 db.execute("DELETE FROM chunks_fts WHERE id = ?", (c["id"],))
-                db.execute("INSERT OR REPLACE INTO chunks VALUES (?,?,?,?,?,?,?,?,?)",
+                db.execute("INSERT OR REPLACE INTO chunks (id, docId, fileName, fileType, location, chunkIndex, "
+                           "uploadedAt, content, vector, imageId) VALUES (?,?,?,?,?,?,?,?,?,?)",
                            (c["id"], c["docId"], c["fileName"], c["fileType"], c["location"], c["chunkIndex"],
-                            c["uploadedAt"], c["content"], vec))
+                            c["uploadedAt"], c["content"], vec, c.get("imageId") or ""))
                 db.execute("INSERT INTO chunks_fts(content, id) VALUES (?, ?)", (c["content"], c["id"]))
             db.commit()
 
@@ -223,7 +228,8 @@ class LocalIndex(SearchIndex):
                                       chosen).fetchall()
         hits = []
         for row in rows:
-            hit = Hit(*row[:6], uploaded_at=row[6], content=row[7], score=fused[row[0]], cosine=cosines.get(row[0]))
+            hit = Hit(*row[:6], uploaded_at=row[6], content=row[7], score=fused[row[0]], cosine=cosines.get(row[0]),
+                      image_id=row[8] or "")
             if self.semantic:
                 hit.reranker_score = self.mock_reranker(hit.cosine or 0.0, keyword.get(hit.id, 0.0))
             hits.append(hit)
@@ -297,6 +303,7 @@ class AzureSearchIndex(SearchIndex):
             SimpleField(name="chunkIndex", type=SearchFieldDataType.Int32),
             SimpleField(name="uploadedAt", type=SearchFieldDataType.DateTimeOffset, filterable=True, sortable=True),
             SearchableField(name="content", type=SearchFieldDataType.String, analyzer_name="en.microsoft"),
+            SimpleField(name="imageId", type=SearchFieldDataType.String, filterable=True),
             SearchField(name="contentVector", type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
                         searchable=True, stored=False, vector_search_dimensions=self.dimensions,
                         vector_search_profile_name=VECTOR_PROFILE),
@@ -337,8 +344,9 @@ class AzureSearchIndex(SearchIndex):
             status = IndexStatus(True, self.dimensions, self.dimensions)
         else:
             status = IndexStatus(True, self._vector_dims(existing), self.dimensions)
-            if not status.mismatch and existing.semantic_search is None:
-                self.index_client.create_or_update_index(self.definition())
+            has_image_field = any(f.name == "imageId" for f in existing.fields)
+            if not status.mismatch and (existing.semantic_search is None or not has_image_field):
+                self.index_client.create_or_update_index(self.definition())  # adding a field keeps the documents
         self._ensured = status
         if status.mismatch:
             log.warning(status.warning)
@@ -424,7 +432,8 @@ class AzureSearchIndex(SearchIndex):
                             location=r.get("location") or "", chunk_index=int(r.get("chunkIndex") or 0),
                             uploaded_at=str(r.get("uploadedAt") or ""), content=r.get("content") or "",
                             score=float(r.get("@search.score") or 0.0),
-                            reranker_score=float(reranker) if reranker is not None else None))
+                            reranker_score=float(reranker) if reranker is not None else None,
+                            image_id=r.get("imageId") or ""))
         if any(h.reranker_score is None for h in hits):
             # Cosine metric: score = 1 / (1 + (1 - cosine))  ->  cosine = 2 - 1 / score
             vector_rows = self.client.search(search_text=None, select=["id"], top=top, vector_queries=[

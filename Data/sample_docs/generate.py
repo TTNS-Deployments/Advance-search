@@ -7,7 +7,11 @@ queries that share no keywords with a document still find it (for example "how m
 the leave policy, which talks about "annual entitlement" and "leave"). ``queries.yaml`` lists the evaluation
 queries. Output is deterministic (fixed document dates), so re-running only changes files whose text changed.
 
-Needs: reportlab, python-docx, openpyxl (all in requirements-dev.txt).
+Three documents carry figures for image search: the FT-200 PDF (front view, plus a small logo on every page that
+extraction must skip), the SM-3 Word datasheet (wiring diagram with alt text and a caption) and the migration plan
+workbook (target architecture diagram).
+
+Needs: reportlab, python-docx, openpyxl, pillow (all in requirements-dev.txt).
 """
 
 from __future__ import annotations
@@ -333,6 +337,64 @@ METER_SPEC = {
     ],
 }
 
+# ---------------------------------------------------------------------------- figures
+
+
+def _png(size, draw) -> bytes:
+    import io
+
+    from PIL import Image, ImageDraw
+
+    image = Image.new("RGB", size, "white")
+    draw(ImageDraw.Draw(image))
+    out = io.BytesIO()
+    image.save(out, "PNG")
+    return out.getvalue()
+
+
+def _box(d, xy, label, fill="#dbe4f7"):
+    d.rectangle(xy, outline="#2f4a8a", width=3, fill=fill)
+    d.text((xy[0] + 10, (xy[1] + xy[3]) // 2 - 6), label, fill="#111111")
+
+
+def tablet_front_view() -> bytes:
+    def draw(d):
+        d.rounded_rectangle((60, 30, 420, 330), radius=24, outline="#222222", width=6, fill="#3a3a3a")
+        d.rectangle((90, 60, 390, 270), fill="#9fc3e8")
+        d.text((170, 160), "8-inch display", fill="#111111")
+        for x, label in ((110, "USB-C"), (220, "Dock"), (320, "Scanner")):
+            d.rectangle((x, 290, x + 50, 305), fill="#bbbbbb")
+            d.text((x, 340), label, fill="#111111")
+    return _png((480, 370), draw)
+
+
+def meter_wiring_diagram() -> bytes:
+    def draw(d):
+        _box(d, (150, 20, 450, 150), "SM-3 meter", "#eeeeee")
+        for i, label in enumerate(("L in", "L out", "N in", "N out")):
+            x = 160 + i * 72
+            d.rectangle((x, 160, x + 60, 200), outline="#2f4a8a", width=3)
+            d.text((x + 8, 172), label, fill="#111111")
+            d.line((x + 30, 200, x + 30, 280), fill="#c0392b" if "L" in label else "#2c3e50", width=4)
+        d.text((160, 290), "Supply side            Load side", fill="#111111")
+    return _png((600, 320), draw)
+
+
+def target_architecture_diagram() -> bytes:
+    def draw(d):
+        _box(d, (20, 20, 620, 80), "Landing zone: identity, policy, monitoring")
+        _box(d, (20, 110, 300, 180), "Hub network and firewall")
+        _box(d, (340, 110, 620, 180), "On-premises link (ExpressRoute)")
+        _box(d, (20, 210, 300, 280), "Billing platform")
+        _box(d, (340, 210, 620, 280), "Meter data platform")
+    return _png((640, 300), draw)
+
+
+def small_logo() -> bytes:
+    """40 x 40 pixels: below the 50 x 50 minimum, so image extraction skips it."""
+    return _png((40, 40), lambda d: d.ellipse((4, 4, 36, 36), fill="#2f4a8a"))
+
+
 # ---------------------------------------------------------------------------- writers
 
 
@@ -351,10 +413,13 @@ def normalise_zip(path: Path) -> None:
 
 
 def write_pdf(path: Path, doc: dict) -> None:
+    import io
+
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
-    from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
+    from reportlab.lib.utils import ImageReader
+    from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
     from reportlab import rl_config
 
@@ -362,14 +427,23 @@ def write_pdf(path: Path, doc: dict) -> None:
     styles = getSampleStyleSheet()
     body = ParagraphStyle("body", parent=styles["BodyText"], fontSize=10.5, leading=15, spaceAfter=6)
     story = [Paragraph(doc["title"], styles["Title"]), Paragraph(doc["subtitle"], styles["Italic"]), Spacer(1, 8 * mm)]
+    figures = doc.get("figures", {})
     for i, (heading, paragraphs) in enumerate(doc["sections"]):
         if i and i % 3 == 0:
             story.append(PageBreak())  # several pages, so passages carry page numbers
         story.append(Paragraph(heading, styles["Heading2"]))
         story.extend(Paragraph(p, body) for p in paragraphs)
+        if heading in figures:
+            png, caption = figures[heading]
+            story += [Image(io.BytesIO(png), width=110 * mm, height=110 * mm * 370 / 480), Paragraph(caption, body)]
+
+    def logo(canvas, _doc):
+        if doc.get("logo"):
+            canvas.drawImage(ImageReader(io.BytesIO(doc["logo"])), A4[0] - 30 * mm, A4[1] - 16 * mm, 10 * mm, 10 * mm)
+
     pdf = SimpleDocTemplate(str(path), pagesize=A4, title=doc["title"], author=COMPANY,
                             leftMargin=20 * mm, rightMargin=20 * mm, topMargin=20 * mm, bottomMargin=20 * mm)
-    pdf.build(story)
+    pdf.build(story, onFirstPage=logo, onLaterPages=logo)
 
 
 def write_scanned_pdf(path: Path) -> None:
@@ -392,8 +466,10 @@ def write_scanned_pdf(path: Path) -> None:
 
 
 def write_docx(path: Path, doc: dict) -> None:
+    import io
+
     from docx import Document
-    from docx.shared import Pt
+    from docx.shared import Cm, Pt
 
     d = Document()
     d.core_properties.title = doc["title"]
@@ -408,6 +484,13 @@ def write_docx(path: Path, doc: dict) -> None:
         d.add_heading(heading, level=level)
         for p in paragraphs:
             d.add_paragraph(p)
+        if heading in doc.get("figures", {}):
+            png, name, alt, caption = doc["figures"][heading]
+            d.add_picture(io.BytesIO(png), width=Cm(12))
+            inline = d.inline_shapes[-1]._inline
+            inline.docPr.set("descr", alt)
+            inline.graphic.graphicData.pic.nvPicPr.cNvPr.set("name", name)
+            d.add_paragraph(caption, style="Caption")
         if heading == "Data classification" and doc.get("table"):
             table = d.add_table(rows=0, cols=len(doc["table"][0]))
             table.style = "Light Grid Accent 1"
@@ -526,6 +609,15 @@ def write_migration_plan(path: Path) -> None:
         ["Migration lead", "Arjun Mehta", "5102"],
         ["Cloud architect", "Farah Siddiqui", "5103"],
     ], [24, 20, 12])
+    import io
+
+    from openpyxl.drawing.image import Image
+
+    ws = _sheet(wb, "Architecture", ["Target architecture"], [
+        ["Figure 1: Target cloud architecture diagram (landing zone, hub network, billing and meter data platforms)"],
+        ["Both platforms run behind the hub network firewall and reach the old data centre over ExpressRoute."],
+    ], [100])
+    ws.add_image(Image(io.BytesIO(target_architecture_diagram())), "A5")
     wb.save(str(path))
     normalise_zip(path)
 
@@ -549,6 +641,14 @@ def write_price_list(path: Path) -> None:
     ], [34, 12, 16, 16, 14])
     wb.save(str(path))
     normalise_zip(path)
+
+
+TABLET_SPEC["figures"] = {"Display": (tablet_front_view(), "Figure 1: FT-200 front view with the display, USB-C port, "
+                                                          "dock connector and barcode scanner window")}
+TABLET_SPEC["logo"] = small_logo()
+METER_SPEC["figures"] = {"Overview": (meter_wiring_diagram(), "sm3-wiring-diagram.png",
+                                      "Wiring diagram of the SM-3 meter terminals: phase and neutral, supply and load",
+                                      "Figure 1: SM-3 terminal wiring diagram")}
 
 
 def main() -> None:

@@ -3,19 +3,22 @@
 <div class="results-head">
   <p class="results-summary" data-query="{{ query }}">
     <strong>{{ results|length }} document{{ results|length|pluralize }}</strong> in {{ response.elapsed_seconds|floatformat:1 }} s
-    {% if response.hidden_below_minimum %}<span class="muted">· {{ response.hidden_below_minimum }} weaker match{{ response.hidden_below_minimum|pluralize:"es" }} hidden</span>{% endif %}
+    {% if response.hidden %}<span class="muted">· {{ response.hidden }} weaker match{{ response.hidden|pluralize:"es" }} hidden</span>{% endif %}
   </p>
   <details class="popover">
     <summary>{% icon 'info' 16 %}<span>How is the match % calculated?</span></summary>
     <div class="popover-body">
-      <p>Each document is scored by its best passage.</p>
+      <p>Each document is scored by its best passage (text, or the caption and nearby text of an image).</p>
       <ul>
         <li><strong>Semantic ranker</strong> (normal case): the ranker's score, 0 to 4, shown as 0–100%.</li>
         <li><strong>Vector similarity</strong> (when the ranker is unavailable): how close the passage's meaning is to your
           query (cosine similarity), shown as 0–100%.</li>
+        <li><strong>Exact match</strong>: a passage with your exact phrase scores higher. A code, file name, figure
+          number or “quoted phrase” in your query only matches documents that contain it.</li>
       </ul>
-      <p>Documents below {{ response.min_match_percent }}% are hidden. The percentage is a <strong>relevance indicator, not a
-        probability</strong>: compare results with each other rather than reading it as a certainty.</p>
+      <p>Only documents that really match are shown: those below {{ response.min_match_percent }}%{% if response.relative_cutoff_percent %},
+        or below {{ response.relative_cutoff_percent }}% of the best match,{% endif %} are hidden. The percentage is a
+        <strong>relevance indicator, not a probability</strong>: compare results with each other rather than reading it as a certainty.</p>
     </div>
   </details>
 </div>
@@ -35,8 +38,21 @@
           </p>
         </div>
       </div>
-      <p class="location-chip">{% icon 'folder' 14 %}<span><span class="visually-hidden">Best passage: </span>{{ r.location }}</span></p>
+      <p class="location-chip">{% icon 'folder' 14 %}<span><span class="visually-hidden">Best passage: </span>{{ r.location }}{% if r.exact_match %} · exact match{% endif %}</span></p>
       <p class="snippet snippet-{{ r.file_type }}">{{ r.snippet|snippet_html }}</p>
+      {% if item.images %}
+      <ul class="result-images" aria-label="Matching images">
+        {% for img in item.images %}{% with i=img.i %}
+        <li class="result-image">
+          <a href="{{ img.url }}" target="_blank" rel="noopener" title="Open the image">
+            <img src="{{ img.url }}" alt="{{ i.alt_text|default:i.label }}" width="{{ i.width }}" height="{{ i.height }}" loading="lazy" decoding="async">
+          </a>
+          <p class="result-image-caption">{{ i.label }}</p>
+          <p class="result-image-meta">{{ i.location }} · {{ i.width }}×{{ i.height }} · {{ i.match_percent }}% match</p>
+        </li>
+        {% endwith %}{% endfor %}
+      </ul>
+      {% endif %}
       <div class="result-actions">
         <a class="btn btn-primary btn-sm" href="{{ item.open_url }}" target="_blank" rel="noopener">{% icon 'open' 16 %}<span>Open document</span></a>
         <button type="button" class="btn btn-ghost btn-sm" data-copy="{{ item.open_url }}">{% icon 'link' 16 %}<span>Copy link</span></button>
@@ -57,7 +73,7 @@
 {% elif state == "no_match" %}
 <div class="empty-state" data-state="no-match">
   <div class="empty-icon">{% icon 'search' 28 %}</div>
-  <h2>No close match</h2>
+  <h2>No matching documents found</h2>
   <p>No document matched “{{ query }}” closely enough{% if response.min_match_percent %} (at least {{ response.min_match_percent }}%){% endif %}.</p>
   <ul class="tips">
     <li>Describe what the document is about, for example “rules for claiming travel costs”.</li>

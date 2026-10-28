@@ -3,9 +3,16 @@
 # See Documents/configuration.md.
 
 results:
-  top_n: 3                 # documents shown per search (1-10)
-  min_match_percent: 20    # documents below this match % are hidden (0-100)
+  top_n: 3                 # at most this many documents per search (1-10); fewer when fewer really match
+  min_match_percent: 30    # documents below this match % are hidden (0-100); env SEARCH_MIN_MATCH_PERCENT
+  relative_cutoff_percent: 60  # documents below this % of the best document's match are hidden (0 = off);
+                               # env SEARCH_RELATIVE_CUTOFF_PERCENT
   candidates: 50           # passages retrieved before grouping by document
+  # A document is shown only if it shares at least one keyword (or related term) with the query, OR its best
+  # passage is genuinely relevant in meaning: semantic ranker score >= strong_reranker_score (0-4 scale; 2 =
+  # "relevant") or, when the ranker is unavailable, cosine similarity >= strong_cosine.
+  strong_reranker_score: 2.0
+  strong_cosine: 0.45
 
 welcome_text: >-
   Search your organisation's documents by meaning. Describe what you need in your own words.
@@ -29,6 +36,21 @@ excel:
 
 embedding:
   batch_size: 16           # passages per embeddings call
+
+# Embedded images (PDF, Word, Excel). Each kept image is saved to the extracted-images container and its text
+# (file name, alt text, caption, nearby text, OCR) is indexed, so searches can return the image itself.
+# IMAGE_EXTRACTION=off turns extraction off; IMAGE_OCR=off turns OCR off. Changes apply to documents indexed
+# afterwards (python -m advancesearch reindex --keep-index processes every document again).
+images:
+  enabled: true
+  min_width: 50            # pixels; smaller images (icons, bullets) are skipped
+  min_height: 50
+  max_aspect_ratio: 12     # thinner images (rules, borders) are skipped
+  repeated_pages: 3        # the same image on this many pages or sections is a logo or watermark (0 = keep)
+  max_per_document: 100
+  context_lines: 3         # lines of text (paragraphs in Word, rows in Excel) above and below taken as context
+  max_text_chars: 2000     # cap on the indexed text per image
+  ocr: auto                # auto = read text in images with Tesseract when pytesseract and tesseract are installed
 
 # Related wording. Used by the local mock embeddings (EMBEDDING_BACKEND=mock), so that related wording scores higher than
 # unrelated wording without a real model, and to highlight related words in result snippets (all modes).
@@ -68,3 +90,4 @@ related_terms:
   - [cctv, camera, cameras, footage, video, recording, recordings, security camera]
   - [thrown away, throw away, destroy, shred, shredding, wipe, wiping, dispose, disposal]
   - [third quarter, q3]
+  - [image, images, picture, pictures, photo, photograph, figure, diagram, drawing, illustration, screenshot, graphic, chart]

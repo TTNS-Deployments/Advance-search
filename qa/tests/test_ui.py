@@ -191,7 +191,8 @@ def test_UI13_result_cards_and_match_meter(admin, server):
 
 
 def test_UI14_meter_colour_follows_value(admin, server):
-    cards = search(admin, "how many days off do I get")
+    cards = search(admin, "how long does the device last on one charge")  # several results with different scores
+    assert cards.count() >= 2
     colours = [cards.nth(i).locator(".meter-fill").evaluate("e => getComputedStyle(e).backgroundColor") for i in range(cards.count())]
     values = [int(cards.nth(i).locator("[role=meter]").get_attribute("aria-valuenow")) for i in range(cards.count())]
     assert values[0] > values[-1] and colours[0] != colours[-1]
@@ -214,7 +215,7 @@ def test_UI16_no_close_match_and_empty_states(admin, server):
     search(admin, "football world cup final score")
     state = admin.locator("#results .empty-state")
     assert state.get_attribute("data-state") == "no-match"
-    assert "No close match" in state.inner_text()
+    assert "No matching documents found" in state.inner_text()
     assert state.locator(".tips li").count() == 3
 
 

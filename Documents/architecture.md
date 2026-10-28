@@ -40,7 +40,9 @@ Advance Search is one web app plus four Azure data services, deployed by one ARM
    ranker over the top 50 passages.
 2. Passages are grouped by document; each document is scored by its best passage (see
    [Technical specification, section 4](technical-specification.md#4-match-score)).
-3. The top N documents (default 3) above the minimum match % are shown with a highlighted snippet. *Open
+3. Documents above the minimum match % and within the relative cutoff of the best one (at most N, default 3) are
+   shown with a highlighted snippet and their matching images (extracted at ingestion into the
+   `extracted-images` container and indexed as passages). *Open
    document* streams the original blob through the app.
 
 **Recovery.** On start-up, on *Sync from storage* and every `SYNC_INTERVAL_SECONDS`, the worker scans the
