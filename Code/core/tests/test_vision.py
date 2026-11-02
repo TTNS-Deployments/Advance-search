@@ -225,3 +225,75 @@ def test_factory_only_builds_a_client_when_a_deployment_is_set(monkeypatch):
     monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://x.openai.azure.com")
     reset_settings_cache()
     assert isinstance(factory.get_vision(), AzureOpenAIVision)
+
+
+# ---------------------------------------------------------------------------- description quality and several images
+
+def test_instructions_ask_for_specific_but_short_descriptions():
+    from advancesearch.vision import SYSTEM_PROMPT
+
+    for wanted in ("20 to 50 words", "how many", "colours", "general word", "a red rose, a flower"):
+        assert wanted in SYSTEM_PROMPT
+
+
+def test_long_answers_are_cut_at_a_sentence_or_word():
+    from advancesearch.vision import MAX_CHARS, shorten
+
+    assert shorten("Photo of  a\nrose.") == "Photo of a rose."
+    sentences = shorten("A red rose in a vase on a table. " * 40)
+    assert len(sentences) <= MAX_CHARS and sentences.endswith(".")
+    words = shorten("flower " * 200)
+    assert len(words) <= MAX_CHARS and words.endswith("flower")
+
+
+def test_a_new_prompt_describes_images_again():
+    from advancesearch.vision import PROMPT_VERSION
+
+    assert client(Session([])).model == f"gpt-5-mini/prompt-{PROMPT_VERSION}"
+
+
+class Describer:
+    """Stands in for the model: gives each new image the next description."""
+    model = "gpt-5-mini"
+
+    def __init__(self, *texts):
+        self.texts = list(texts)
+
+    def describe(self, data, context=""):
+        return self.texts.pop(0)
+
+
+def picture_doc(tmp_path, name, colours):
+    from docx import Document
+
+    d = Document()
+    d.add_paragraph("Quarterly office update.")
+    for i, colour in enumerate(colours):
+        path = tmp_path / f"image{i}.png"
+        path.write_bytes(png(colour=colour))
+        d.add_picture(str(path))
+        d.add_paragraph(f"Paragraph {i} about nothing in particular.")
+    d.save(tmp_path / name)
+    return tmp_path / name
+
+
+ROSE = "Photo of one red rose, a flower, in a glass vase on a wooden table."
+SUNFLOWER = "Photo of three yellow sunflowers, flowers, in a green field under a blue sky."
+
+
+def test_two_flower_images_in_one_document_are_both_shown_in_its_result(service, tmp_path):
+    service.vision = Describer(ROSE, SUNFLOWER)
+    ingest(service, picture_doc(tmp_path, "Garden.docx", [(200, 0, 0), (250, 220, 0)]))
+    [result] = search("image of a flower").results
+    assert {i.ai_description for i in result.images} == {ROSE, SUNFLOWER}
+
+
+def test_two_flower_images_in_two_documents_give_two_results(service, tmp_path):
+    service.vision = Describer(ROSE, SUNFLOWER)
+    ingest(service, picture_doc(tmp_path, "Rose.docx", [(200, 0, 0)]))
+    ingest(service, picture_doc(tmp_path, "Field.docx", [(250, 220, 0)]))
+    results = search("image of a flower").results
+    assert {r.file_name for r in results} == {"Rose.docx", "Field.docx"}
+    assert all(len(r.images) == 1 for r in results)
+    assert search("image of a red rose").results[0].file_name == "Rose.docx"
+    assert search("sunflowers in a field").results[0].file_name == "Field.docx"

@@ -132,7 +132,13 @@ location and document name, caption (`Figure N…` near the image, or the Word *
 with `reasoning_effort` and `max_completion_tokens` (no temperature), managed identity, up to 5 attempts on 408, 429
 and 5xx. The answer is saved as `aiDescription` and `aiModel` in `images.json`, indexed with the image and shown as
 *AI description*. A failure does not fail the document: the image is found through its text only and Re-index
-tries again. Re-indexing reuses a description from the same model, so an image is not billed twice.
+tries again. Re-indexing reuses a description from the same model and prompt (`aiModel`), so an image is not billed
+twice; changing `PROMPT_VERSION` in `vision.py` describes images again. The prompt asks for 1 or 2 sentences of about
+20 to 50 words: the kind of image, the main subjects, how many, colours and setting, with both the specific and the
+general word ("a red rose, a flower"). Answers are cut to 600 characters at a sentence or word boundary.
+
+**Several matching images.** A result lists up to 4 matching images of its document. Images in different documents
+give separate results, up to `top_n`, subject to the same minimum and relative cutoff.
 
 **Searching for a picture.** "image of a flower", "show me a photo of a flower" or "flower photo" search for the
 subject ("a flower") among image passages only (`imageId ne null and imageId ne ''`). "image", "picture", "photo"
