@@ -41,6 +41,10 @@ All settings come from environment variables. A value that is an unresolved Key 
 | `SEARCH_MIN_MATCH_PERCENT` | – (`search.yaml`: 30) | – | Overrides `results.min_match_percent` (0–100). The Settings page overrides this |
 | `SEARCH_RELATIVE_CUTOFF_PERCENT` | – (`search.yaml`: 60) | – | Overrides `results.relative_cutoff_percent` (0–100, 0 = off). The Settings page overrides this |
 | `IMAGE_EXTRACTION` | `on` | – | `off` stops extracting images from new and re-indexed documents |
+| `VISION_BACKEND` | `azure` when `VISION_DEPLOYMENT` is set in Azure mode, otherwise `none` | – | `azure`: a vision model describes each image during ingestion. `none`: images are found through their text only |
+| `VISION_DEPLOYMENT` | – | `visionModelName` (empty when `enableImageDescriptions` is false) | Vision model deployment in the Azure OpenAI resource |
+| `AZURE_OPENAI_VISION_API_VERSION` | `2025-04-01-preview` | `visionApiVersion` | API version for image descriptions |
+| `VISION_REASONING_EFFORT` | `low` | `visionReasoningEffort` | `minimal`, `low`, `medium` or `high`; more effort is slower and uses more tokens |
 | `IMAGE_OCR` | `auto` | – | `auto`: read text in images when `pytesseract` and the `tesseract` program are installed; `off`: never |
 | `INGEST_WORKER` | `thread` | – | `thread` (background thread), `inline` (tests) or `off` |
 | `SYNC_INTERVAL_SECONDS` | `300` | – | How often the worker looks for new files in storage |
@@ -98,6 +102,7 @@ All settings come from environment variables. A value that is an unresolved Key 
 | `images.max_per_document` | 100 | No | Images kept per document |
 | `images.context_lines` | 3 | No | Lines (Word: paragraphs, Excel: rows) above and below an image indexed with it |
 | `images.max_text_chars` | 2000 | No | Longest indexed text per image |
+| `images.describe_max_per_document` | 50 | No | Images per document sent to the vision model; each one is billed |
 | `images.ocr` | auto | No | `auto` or `off`; see `IMAGE_OCR` |
 | `related_terms` | 34 groups | No | Groups of related words: used by the local mock embeddings and to highlight related words in snippets |
 

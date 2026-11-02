@@ -13,7 +13,8 @@ Advance Search is one web app plus four Azure data services, deployed by one ARM
 | Document store | Blob Storage, container `documents` | Original files. Each blob's **metadata** holds its status, error, passage count, content hash, uploader and dates. There is no database |
 | Settings store | Blob Storage, container `config` | `settings.json`: the admin's overrides of `Config/search.yaml` |
 | Code packages | Blob Storage, container `code-packages` | The zipped app the web app runs from (`WEBSITE_RUN_FROM_PACKAGE`) |
-| Embeddings | Azure OpenAI, its own resource in `openAiLocation` (South India) | One embedding deployment (`text-embedding-3-small`, 1536 dimensions). No chat model |
+| Embeddings | Azure OpenAI, its own resource in `openAiLocation` (South India) | One embedding deployment (`text-embedding-3-small`, 1536 dimensions) |
+| Image descriptions | Azure OpenAI, same resource | One vision deployment (`gpt-5-mini`). During ingestion it describes each extracted image in words, so pictures can be found by what they show. Billed per token, nothing until used. Optional (`enableImageDescriptions`) |
 | Search index | Azure AI Search | One index of passages: text (`en.microsoft` analyzer), vector (HNSW, cosine), semantic configuration. Created by the app |
 | Secrets | Key Vault (RBAC) | `demo-password`, `django-secret-key`, read through App Service Key Vault references |
 | Monitoring | Application Insights on Log Analytics | Requests, exceptions and logs (OpenTelemetry) |

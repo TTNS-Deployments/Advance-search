@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 RRF_K = 60
 SEMANTIC_CONFIG = "default"
 VECTOR_PROFILE = "vector-profile"
+IMAGE_FILTER = "imageId ne null and imageId ne ''"
 FIELDS = ["id", "docId", "fileName", "fileType", "location", "chunkIndex", "uploadedAt", "content", "imageId"]
 
 
@@ -86,7 +87,7 @@ class SearchIndex(ABC):
     def delete_document(self, doc_id: str) -> int: ...
 
     @abstractmethod
-    def search(self, query: str, vector: list[float], top: int = 50) -> list[Hit]: ...
+    def search(self, query: str, vector: list[float], top: int = 50, images_only: bool = False) -> list[Hit]: ...
 
     @abstractmethod
     def reset(self) -> None: ...
@@ -206,7 +207,7 @@ class LocalIndex(SearchIndex):
         wording = keyword / (keyword + 6.0) if keyword > 0 else 0.0
         return round(4.0 * min(1.0, 0.75 * meaning + 0.25 * wording), 4)
 
-    def search(self, query, vector, top=50):
+    def search(self, query, vector, top=50, images_only=False):
         self._check()
         with self._lock:
             db = self._db()
@@ -217,6 +218,10 @@ class LocalIndex(SearchIndex):
                                   "ORDER BY s LIMIT ?", (expression, top)).fetchall()
                 keyword = {r[0]: -float(r[1]) for r in rows}
             cosines = self._cosines(db, vector)
+            if images_only:
+                images = {r[0] for r in db.execute("SELECT id FROM chunks WHERE imageId != ''")}
+                keyword = {k: v for k, v in keyword.items() if k in images}
+                cosines = {k: v for k, v in cosines.items() if k in images}
         by_vector = sorted(cosines, key=cosines.get, reverse=True)[:top]
         fused = _rrf(sorted(keyword, key=keyword.get, reverse=True), by_vector)
         chosen = sorted(fused, key=fused.get, reverse=True)[:top]
@@ -399,31 +404,33 @@ class AzureSearchIndex(SearchIndex):
         self._ensured = None
         self.ensure()
 
-    def _hybrid(self, query, vector, top, semantic: bool):
+    def _hybrid(self, query, vector, top, semantic: bool, images_only: bool = False):
         from azure.search.documents.models import VectorizedQuery
 
         kwargs = dict(search_text=query, top=top, select=FIELDS,
                       vector_queries=[VectorizedQuery(vector=vector, k_nearest_neighbors=top, fields="contentVector")])
+        if images_only:
+            kwargs["filter"] = IMAGE_FILTER
         if semantic:
             kwargs.update(query_type="semantic", semantic_configuration_name=SEMANTIC_CONFIG,
                           semantic_error_mode="partial", semantic_max_wait_in_milliseconds=3000)
         return list(self.client.search(**kwargs))
 
-    def search(self, query, vector, top=50):
+    def search(self, query, vector, top=50, images_only=False):
         from azure.core.exceptions import HttpResponseError
         from azure.search.documents.models import VectorizedQuery
 
         self._check()
         semantic = time.monotonic() >= self._semantic_off_until
         try:
-            rows = self._hybrid(query, vector, top, semantic)
+            rows = self._hybrid(query, vector, top, semantic, images_only)
         except HttpResponseError as exc:
             if not semantic or "semantic" not in str(exc).lower():
                 raise
             log.warning("Semantic ranker unavailable, using vector scores for %ss: %s",
                         self.SEMANTIC_RETRY_SECONDS, exc)
             self._semantic_off_until = time.monotonic() + self.SEMANTIC_RETRY_SECONDS
-            rows = self._hybrid(query, vector, top, False)
+            rows = self._hybrid(query, vector, top, False, images_only)
 
         hits = []
         for r in rows:
@@ -436,7 +443,8 @@ class AzureSearchIndex(SearchIndex):
                             image_id=r.get("imageId") or ""))
         if any(h.reranker_score is None for h in hits):
             # Cosine metric: score = 1 / (1 + (1 - cosine))  ->  cosine = 2 - 1 / score
-            vector_rows = self.client.search(search_text=None, select=["id"], top=top, vector_queries=[
+            vector_rows = self.client.search(search_text=None, select=["id"], top=top,
+                                             filter=IMAGE_FILTER if images_only else None, vector_queries=[
                 VectorizedQuery(vector=vector, k_nearest_neighbors=top, fields="contentVector")])
             cosines = {r["id"]: 2.0 - 1.0 / float(r["@search.score"]) for r in vector_rows if r.get("@search.score")}
             for h in hits:

@@ -301,3 +301,20 @@ def test_local_index_dimension_mismatch(tmp_path):
         other.search("q", [0.0] * 128)
     other.reset()
     assert not other.status().mismatch
+
+
+def test_azure_image_search_filters_on_images(azure_index):
+    class Client(FakeSearchClient):
+        def search(self, **kwargs):
+            self.requests.append(kwargs)
+            return self.hybrid_rows
+
+    azure_index.client = Client([_row(1, reranker=3.0)])
+    azure_index.search("flower", [0.1, 0.2, 0.3], 50, images_only=True)
+    assert azure_index.client.requests[0]["filter"] == "imageId ne null and imageId ne ''"
+    assert len(azure_index.client.requests) == 1
+    azure_index.client = Client([_row(1)], vector_rows=[])  # no ranker: the cosine query is filtered too
+    azure_index.client.hybrid_rows = [_row(1)]
+    azure_index.search("flower", [0.1, 0.2, 0.3], 50, images_only=True)
+    assert all(r["filter"] == "imageId ne null and imageId ne ''" for r in azure_index.client.requests)
+    assert len(azure_index.client.requests) == 2

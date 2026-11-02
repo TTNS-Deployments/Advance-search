@@ -94,6 +94,12 @@ class Settings:
     max_upload_mb: int = 20
     image_extraction: bool = True      # extract embedded images and make them searchable
     image_ocr: str = "auto"            # auto (use Tesseract if installed) | off
+
+    # Image descriptions by a vision model during ingestion
+    vision_backend: str = "none"       # none | azure
+    vision_deployment: str = ""
+    vision_api_version: str = "2025-04-01-preview"
+    vision_reasoning_effort: str = "low"
     worker_mode: str = "thread"        # thread | inline | off
     sync_interval_seconds: int = 300
     processing_stale_minutes: int = 15
@@ -153,6 +159,10 @@ def get_settings() -> Settings:
         max_upload_mb=_env_int("MAX_UPLOAD_MB", 20),
         image_extraction=image_extraction == "on",
         image_ocr=image_ocr,
+        vision_backend=_env("VISION_BACKEND", "azure" if azure and _env("VISION_DEPLOYMENT") else "none").lower(),
+        vision_deployment=_env("VISION_DEPLOYMENT"),
+        vision_api_version=_env("AZURE_OPENAI_VISION_API_VERSION", "2025-04-01-preview"),
+        vision_reasoning_effort=_env("VISION_REASONING_EFFORT", "low").lower(),
         worker_mode=worker_mode,
         sync_interval_seconds=_env_int("SYNC_INTERVAL_SECONDS", 300),
         processing_stale_minutes=_env_int("PROCESSING_STALE_MINUTES", 15),

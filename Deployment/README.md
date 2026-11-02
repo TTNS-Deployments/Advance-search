@@ -58,6 +58,11 @@ Values in the three parameter files; "Options" are the values the template accep
 | `embeddingDeploymentSku` | GlobalStandard | GlobalStandard | GlobalStandard | `Standard`, `GlobalStandard`, `DataZoneStandard` |
 | `embeddingCapacity` | 10 | 10 | 50 | Thousands of tokens per minute; quota is shared per subscription and region |
 | `embeddingDimensions` | 1536 | 1536 | 1536 | 256–3072; 3072 for `text-embedding-3-large`. A change needs *Rebuild index* |
+| `enableImageDescriptions` | true | true | true | A vision model describes each image during ingestion. `false` = no deployment; images are found through their text only |
+| `visionModelName` / `visionModelVersion` | gpt-5-mini / 2025-08-07 | same | same | Must accept images and be offered in `openAiLocation` |
+| `visionDeploymentSku` | GlobalStandard | GlobalStandard | GlobalStandard | `Standard`, `GlobalStandard`, `DataZoneStandard` |
+| `visionCapacity` | 20 | 20 | 50 | Thousands of tokens per minute; billed per token, so capacity itself costs nothing |
+| `visionApiVersion` / `visionReasoningEffort` | 2025-04-01-preview / low | same | same | `minimal`, `low`, `medium`, `high` |
 | `openAiApiVersion` | 2024-10-21 | 2024-10-21 | 2024-10-21 | An embeddings-capable API version |
 | **Search (Azure AI Search)** | | | | |
 | `searchSku` | basic | basic | standard | `free` (one per subscription, no semantic ranker or private endpoints), `basic`, `standard`, `standard2`, `standard3` |

@@ -26,10 +26,11 @@ Every Azure resource is defined in a single ARM template, `azuredeploy.json` (co
 | 2 | Storage | Original documents with their status, settings overrides, code packages | Storage account (StorageV2, Standard_LRS, soft delete 7 days) | azuredeploy.json |
 | 3 | Monitoring | Logs and application telemetry | Log Analytics (30 days, 1 GB/day), Application Insights | azuredeploy.json |
 | 4 | Embeddings (Azure OpenAI) | Turns passages and queries into vectors | Azure OpenAI `text-embedding-3-small` (1536 dimensions, 10K TPM, own resource in South India) | azuredeploy.json |
-| 5 | Search (Azure AI Search) | Passage index with keyword, vector and semantic ranking | Azure AI Search (Basic, 1 replica, 1 partition, semantic ranker free plan) | azuredeploy.json |
-| 6 | Web app | Django UI, upload and ingestion, search API | App Service (Linux, Python 3.12) on a new B1 plan, or on an existing plan | azuredeploy.json |
-| 7 | Identity and access | Managed identity of the web app with least-privilege roles; data roles for the deploying identity | Role assignments (RBAC, created by ARM) | azuredeploy.json |
-| 8 | Private networking (prod) | Private endpoints for Blob, AI Search, Azure OpenAI and Key Vault, VNet integration | VNet, private endpoints, private DNS zones | azuredeploy.json |
+| 5 | Image descriptions (Azure OpenAI) | Describes each image during ingestion, so pictures can be found by what they show | Azure OpenAI `gpt-5-mini` (GlobalStandard, 20K TPM, same resource; billed per token, nothing until used) | azuredeploy.json |
+| 6 | Search (Azure AI Search) | Passage index with keyword, vector and semantic ranking | Azure AI Search (Basic, 1 replica, 1 partition, semantic ranker free plan) | azuredeploy.json |
+| 7 | Web app | Django UI, upload and ingestion, search API | App Service (Linux, Python 3.12) on a new B1 plan, or on an existing plan | azuredeploy.json |
+| 8 | Identity and access | Managed identity of the web app with least-privilege roles; data roles for the deploying identity | Role assignments (RBAC, created by ARM) | azuredeploy.json |
+| 9 | Private networking (prod) | Private endpoints for Blob, AI Search, Azure OpenAI and Key Vault, VNet integration | VNet, private endpoints, private DNS zones | azuredeploy.json |
 
 Microsoft Entra ID sign-in (an app registration) and Microsoft Defender for Cloud plans are not deployed by the template.
 

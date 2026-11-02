@@ -78,6 +78,32 @@ param embeddingDimensions int = 1536
 @description('Azure OpenAI API version used for embeddings.')
 param openAiApiVersion string = '2024-10-21'
 
+// ---------------------------------------------------------------------------- Azure OpenAI (image descriptions)
+
+@description('Deploy a vision model that describes each image during ingestion, so pictures can be found by what they show. The deployment costs nothing until it is used (billed per token).')
+param enableImageDescriptions bool = true
+
+@description('Vision model in the Azure OpenAI resource.')
+param visionModelName string = 'gpt-5-mini'
+
+@description('Vision model version.')
+param visionModelVersion string = '2025-08-07'
+
+@description('Deployment type of the vision model.')
+@allowed(['Standard', 'GlobalStandard', 'DataZoneStandard'])
+param visionDeploymentSku string = 'GlobalStandard'
+
+@description('Vision deployment capacity in thousands of tokens per minute; quota is shared per subscription and region.')
+@minValue(1)
+param visionCapacity int = 20
+
+@description('Azure OpenAI API version used for image descriptions.')
+param visionApiVersion string = '2025-04-01-preview'
+
+@description('Reasoning effort of the vision model (more effort = slower and more tokens).')
+@allowed(['minimal', 'low', 'medium', 'high'])
+param visionReasoningEffort string = 'low'
+
 // ---------------------------------------------------------------------------- Azure AI Search
 
 @description('Azure AI Search tier. Free: one per subscription, no semantic ranker, no private endpoints, 50 MB.')
@@ -316,6 +342,17 @@ resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
   }
 }
 
+// Deployments of one account are created one at a time: this one waits for the embedding deployment.
+resource visionDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (enableImageDescriptions) {
+  parent: openAi
+  name: visionModelName
+  dependsOn: [embeddingDeployment]
+  sku: { name: visionDeploymentSku, capacity: visionCapacity }
+  properties: {
+    model: { format: 'OpenAI', name: visionModelName, version: visionModelVersion }
+  }
+}
+
 // ============================================================================ 5. Azure AI Search
 
 resource search 'Microsoft.Search/searchServices@2023-11-01' = {
@@ -408,6 +445,9 @@ resource web 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'AZURE_OPENAI_API_VERSION', value: openAiApiVersion }
         { name: 'EMBEDDING_DEPLOYMENT', value: embeddingDeployment.name }
         { name: 'EMBEDDING_DIMENSIONS', value: string(embeddingDimensions) }
+        { name: 'VISION_DEPLOYMENT', value: enableImageDescriptions ? visionModelName : '' }
+        { name: 'AZURE_OPENAI_VISION_API_VERSION', value: visionApiVersion }
+        { name: 'VISION_REASONING_EFFORT', value: visionReasoningEffort }
         { name: 'MAX_UPLOAD_MB', value: string(maxUploadMb) }
         { name: 'DISPLAY_TIME_ZONE', value: displayTimeZone }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }

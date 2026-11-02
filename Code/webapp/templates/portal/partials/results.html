@@ -45,9 +45,10 @@
         {% for img in item.images %}{% with i=img.i %}
         <li class="result-image">
           <a href="{{ img.url }}" target="_blank" rel="noopener" title="Open the image">
-            <img src="{{ img.url }}" alt="{{ i.alt_text|default:i.label }}" width="{{ i.width }}" height="{{ i.height }}" loading="lazy" decoding="async">
+            <img src="{{ img.url }}" alt="{{ i.alt_text|default:i.ai_description|default:i.label }}" width="{{ i.width }}" height="{{ i.height }}" loading="lazy" decoding="async">
           </a>
-          <p class="result-image-caption">{{ i.label }}</p>
+          {% if i.label != "Image" %}<p class="result-image-caption">{{ i.label }}</p>{% endif %}
+          {% if i.ai_description %}<p class="result-image-ai"><span class="ai-tag">AI description</span> {{ i.ai_description }}</p>{% endif %}
           <p class="result-image-meta">{{ i.location }} · {{ i.width }}×{{ i.height }} · {{ i.match_percent }}% match</p>
         </li>
         {% endwith %}{% endfor %}

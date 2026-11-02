@@ -254,6 +254,52 @@
               "required": true
             },
             "visible": true
+          },
+          {
+            "name": "enableImageDescriptions",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Describe images with a vision model",
+            "defaultValue": "true",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "Yes (gpt-5-mini; billed per token when used)",
+                  "value": "true"
+                },
+                {
+                  "label": "No (images found through their text only)",
+                  "value": "false"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
+          },
+          {
+            "name": "visionCapacity",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Vision capacity (thousand tokens per minute)",
+            "defaultValue": "20",
+            "toolTip": "",
+            "constraints": {
+              "allowedValues": [
+                {
+                  "label": "20K TPM",
+                  "value": "20"
+                },
+                {
+                  "label": "50K TPM",
+                  "value": "50"
+                },
+                {
+                  "label": "100K TPM",
+                  "value": "100"
+                }
+              ],
+              "required": true
+            },
+            "visible": true
           }
         ]
       },
@@ -609,7 +655,9 @@
       "logAnalyticsRetentionDays": "[int(steps('operations').logAnalyticsRetentionDays)]",
       "logAnalyticsDailyQuotaGb": "[int(steps('operations').logAnalyticsDailyQuotaGb)]",
       "keyVaultSku": "[steps('operations').keyVaultSku]",
-      "privateNetworking": "[bool(steps('operations').privateNetworking)]"
+      "privateNetworking": "[bool(steps('operations').privateNetworking)]",
+      "enableImageDescriptions": "[bool(steps('ai').enableImageDescriptions)]",
+      "visionCapacity": "[int(steps('ai').visionCapacity)]"
     }
   }
 }

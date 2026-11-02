@@ -684,3 +684,24 @@ class EvidenceTests(AppTestCase):
         self.assertGreater(body["hiddenNoEvidence"], 0)  # the other documents: no keyword, weak meaning
         body = self.client.get("/api/search", {"q": "chocolate cake recipe"}).json()
         self.assertEqual((body["count"], body["message"]), (0, "No matching documents found."))
+
+
+class ImageDescriptionTests(AppTestCase):
+    def test_picture_is_found_by_its_description_and_labelled_as_ai(self):
+        class Vision:
+            model = "gpt-5-mini"
+
+            def describe(self, data, context=""):
+                return "Photograph of a red <b>flower</b>."
+
+        self.sign_in("Admin")
+        with mock.patch("advancesearch.factory.get_vision", return_value=Vision()):
+            self.assertEqual(self.upload("Platform-Design.pdf", make_pdf_with_figure()).status_code, 200)
+        body = self.client.get("/api/search", {"q": "image of a flower"}).json()
+        self.assertEqual([r["fileName"] for r in body["results"]], ["Platform-Design.pdf"])
+        self.assertEqual(body["results"][0]["images"][0]["aiDescription"], "Photograph of a red <b>flower</b>.")
+        page = self.client.get("/search/results", {"q": "image of a flower"}, HTTP_HX_REQUEST="true")
+        self.assertContains(page, "AI description")
+        self.assertContains(page, "&lt;b&gt;flower&lt;/b&gt;")  # model output is escaped like any other text
+        self.assertNotContains(page, "<b>flower</b>")
+        self.assertEqual(self.client.get("/api/search", {"q": "image of a car"}).json()["count"], 0)

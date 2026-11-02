@@ -126,6 +126,17 @@ cd ~ && git clone https://github.com/TTNS-Deployments/Advance-search.git ; cd ~/
   in place; the app creates the `extracted-images` container if the template has not.
 - Untested on Azure: image extraction with real embeddings and the semantic ranker; the thresholds may need tuning.
 
+## Image descriptions (2026-11-02)
+
+- Problem: "image of a flower" found nothing, because only text around an image was indexed. Reproduced locally:
+  an uncaptioned picture named `image1.png` extracts fine (count 1 in PDF, Word, Excel) but no text says "flower".
+- Decision (user): a new, dedicated `gpt-5-mini` deployment in the app's own OpenAI resource, describing each image at
+  ingestion (`vision.py`, `VISION_*` settings). More AI Search indexes would not help: nothing in them says "flower".
+- Searches like "image of X" look for X among images only; "image", "photo" etc. are not keywords. An image whose
+  text has every keyword scores at least 50%. Re-indexing reuses descriptions from the same model.
+- **Not verified on Azure**: tested with a stand-in model and a fake HTTP session. That `gpt-5-mini` accepts
+  images on this deployment, the request shape, and the real ranker scores still need one real document.
+
 ## Open items
 
 - First real deployment: watch for `InsufficientQuota`, role-assignment propagation (documents failing with

@@ -120,7 +120,7 @@ NOT_IN_TEMPLATE = {
     "SEARCH_API_KEY", "AZURE_OPENAI_KEY", "ADVSEARCH_CONFIG_DIR", "ADVSEARCH_SAMPLE_DATA_DIR", "INGEST_WORKER",
     "SYNC_INTERVAL_SECONDS", "PROCESSING_STALE_MINUTES", "AZURE_CLIENT_ID", "DJANGO_DEBUG", "DJANGO_ALLOWED_HOSTS",
     "DJANGO_CSRF_TRUSTED_ORIGINS", "DJANGO_SSL_REDIRECT", "CONTENT_SECURITY_POLICY", "LOG_LEVEL",
-    "WEBSITE_HOSTNAME", "WEBSITE_INSTANCE_ID", "SEARCH_MIN_MATCH_PERCENT", "SEARCH_RELATIVE_CUTOFF_PERCENT",
+    "WEBSITE_HOSTNAME", "WEBSITE_INSTANCE_ID", "VISION_BACKEND", "SEARCH_MIN_MATCH_PERCENT", "SEARCH_RELATIVE_CUTOFF_PERCENT",
     "IMAGE_EXTRACTION", "IMAGE_OCR",
 }
 
@@ -253,3 +253,13 @@ def test_every_resource_name_carries_the_solution_prefix():
                                                                 "Microsoft.Network/privateDnsZones"):
             continue
         assert "variables('names')" in r["name"] or "variables('baseName')" in r["name"], (r["type"], r["name"])
+
+
+def test_vision_deployment_waits_for_the_embedding_deployment():
+    """Azure refuses two model deployments on one account at the same time."""
+    deployments = [r for r in resources() if r["type"] == "Microsoft.CognitiveServices/accounts/deployments"]
+    assert len(deployments) == 2
+    vision = next(r for r in deployments if "visionModelName" in r["name"])
+    assert vision["condition"] == "[parameters('enableImageDescriptions')]"
+    assert any("embeddingModelName" in dep for dep in vision["dependsOn"])
+    assert template_app_settings()["VISION_DEPLOYMENT"] == "[if(parameters('enableImageDescriptions'), parameters('visionModelName'), '')]"

@@ -14,6 +14,7 @@ in [SUPPORT.md](SUPPORT.md), with the steps to reproduce and the potential impac
 | Service access | The web app's **system-assigned managed identity** with least-privilege roles (Storage Blob Data Contributor, Cognitive Services OpenAI User, Search Index Data Contributor, Search Service Contributor, Key Vault Secrets User). No service keys in app settings |
 | Secrets | The demo password and the Django secret key are in **Key Vault**, read through Key Vault references |
 | Documents | Private containers (no public blob access). Files are opened only through the app, after a role check; links require sign-in |
+| Images | When image descriptions are on, each extracted image is sent to the solution's own Azure OpenAI resource during ingestion. Text inside an image is treated as content, not as instructions. Descriptions are labelled as AI-generated |
 | Uploads | Extension, magic bytes and Office zip structure checked; size limit; names sanitised; streamed to temporary files; duplicates refused |
 | Web | HTTPS only, TLS 1.2, FTP and basic-auth publishing off, secure and HTTP-only cookies, CSRF protection, strict Content-Security-Policy (no inline scripts, vendored libraries), `X-Frame-Options: DENY`, HSTS, escaped output |
 | Network (prod) | Private endpoints for Blob, AI Search, Azure OpenAI and Key Vault with public access disabled; web app VNet integration |

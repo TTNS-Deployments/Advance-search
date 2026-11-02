@@ -123,7 +123,25 @@ portal names the deployment differently, run the full `deploy.sh` instead.
 The CI workflow (`ci.yml`) runs every test, checks that `azuredeploy.json` matches the Bicep source and builds
 the package as an artifact.
 
-## 7. Change SKUs later
+## 7. Image descriptions
+
+The template deploys a second model, `gpt-5-mini`, in the same Azure OpenAI resource (`enableImageDescriptions`,
+default `true`). It costs nothing until used: each image described is billed per token, once. Check the model and
+quota first:
+
+```bash
+az cognitiveservices model list -l southindia --query "[?model.name=='gpt-5-mini'].{v:model.version,s:join(',',model.skus[].name)}" -o table
+az cognitiveservices usage list -l southindia --query "[?contains(name.value,'gpt-5-mini')].{quota:name.value, used:currentValue, limit:limit}" -o table
+```
+
+The demo needs version `2025-08-07`, `GlobalStandard` and 20 free on the matching quota line. If these differ, change
+`visionModelVersion`, `visionDeploymentSku` or `visionCapacity` in the parameters file; with no quota at all, set
+`enableImageDescriptions` to `false` (the rest of the app works as before).
+
+Documents indexed before this have no descriptions. Select **Re-index** on one document to try it, then **Rebuild
+index** for all of them.
+
+## 8. Change SKUs later
 
 Edit the parameters file and run `deploy.sh` again (infrastructure and code). Notes:
 
@@ -139,6 +157,7 @@ Edit the parameters file and run `deploy.sh` again (infrastructure and code). No
 
 | Symptom | Cause and fix |
 |---|---|
+| Pictures are not found by what they show; results have no *AI description* | The document was indexed before descriptions existed: select **Re-index**. Otherwise look in the *Log stream* for `Could not describe an image` (quota, role assignment still propagating, or a content filter) |
 | `InsufficientQuota` on the embedding deployment | No quota for that model and deployment type in `openAiLocation`. Run the two checks in step 1, then lower `embeddingCapacity`, switch `embeddingDeploymentSku`, or use another `openAiLocation` with quota |
 | `The subscription is not registered to use namespace 'Microsoft.Search'` | Run `az provider register -n Microsoft.Search --wait` (needs subscription Contributor) |
 | `App Service plan 'ccai-demo-gqausd-web-plan' was not found` | Check `EXISTING_PLAN_NAME` / `EXISTING_PLAN_RESOURCE_GROUP` in `demo.env`, or remove both lines to create a plan |

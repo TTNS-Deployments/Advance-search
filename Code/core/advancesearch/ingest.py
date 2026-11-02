@@ -160,7 +160,7 @@ class UploadResult:
 class DocumentService:
     """Every document operation used by the web app, the worker and the CLI."""
 
-    def __init__(self, blobs, index, embedder, settings, settings_store, images=None):
+    def __init__(self, blobs, index, embedder, settings, settings_store, images=None, vision=None):
         from .images import ImageStore
 
         self.blobs = blobs
@@ -169,6 +169,7 @@ class DocumentService:
         self.settings = settings
         self.settings_store = settings_store
         self.images = images or ImageStore(blobs, settings.container_images)
+        self.vision = vision
         self.container = settings.container_documents
 
     # ------------------------------------------------------------------ listing
@@ -352,6 +353,7 @@ class DocumentService:
                 if other.name != name and other.content_hash == digest and other.status == INDEXED:
                     return FAILED, 0, 0, f"Duplicate content: already indexed as {other.name}.", digest
 
+            known = self._known_descriptions(doc_id)  # read before the image list is removed: no second bill
             self._remove_indexed(doc_id)  # replace any earlier version
             opts = ChunkOptions.from_config(self.settings_store.chunking)
             batch_size = self.settings_store.batch_size
@@ -369,7 +371,7 @@ class DocumentService:
             except ExtractionError as exc:
                 return FAILED, 0, 0, str(exc), digest
             texts = count
-            images = self._extract_images(Path(tmp.name), doc_id, name, file_type)
+            images = self._extract_images(Path(tmp.name), doc_id, name, file_type, known)
             image_passages = [p for p in images if p.text]
             for i in range(0, len(image_passages), batch_size):
                 count = self._index_batch(image_passages[i:i + batch_size], count, doc_id, name, file_type,
@@ -380,12 +382,48 @@ class DocumentService:
             log.info("%s has no text layer; only its images are searchable", name)
         return INDEXED, count, len(images), "", digest
 
-    def _extract_images(self, path: Path, doc_id: str, name: str, file_type: str) -> list[Passage]:
+    def _known_descriptions(self, doc_id: str) -> dict[str, str]:
+        """Descriptions this model already wrote for the document's images (re-indexing does not pay again)."""
+        if self.vision is None:
+            return {}
+        try:
+            return {r["imageId"]: r["aiDescription"] for r in self.images.manifest(doc_id)
+                    if r.get("aiDescription") and r.get("aiModel") == self.vision.model}
+        except Exception:  # noqa: BLE001
+            return {}
+
+    def _describe_images(self, images: list, name: str, known: dict[str, str]) -> None:
+        """Add the vision model's description to each image. A failure never fails the document: that image is
+        found through its text only, and Re-index tries it again."""
+        if self.vision is None:
+            return
+        limit = int(self.settings_store.images.get("describe_max_per_document", 50))
+        failed = 0
+        for image in images[:limit]:
+            image.ai_model = self.vision.model
+            image.ai_description = known.get(image.image_id, "")
+            if image.ai_description:
+                continue
+            context = " - ".join(t for t in (name, image.caption) if t)
+            try:
+                image.ai_description = self.vision.describe(image.data, context)
+            except Exception as exc:  # noqa: BLE001
+                failed += 1
+                image.ai_model = ""
+                log.warning("Could not describe an image in %s (%s): %s", name, image.location, exc)
+        if failed:
+            log.warning("%s: %s of %s images have no description", name, failed, len(images))
+        if len(images) > limit:
+            log.info("%s: described the first %s of %s images", name, limit, len(images))
+
+    def _extract_images(self, path: Path, doc_id: str, name: str, file_type: str,
+                        known: dict[str, str] | None = None) -> list[Passage]:
         """Save the document's images and return one passage per image (empty text: nothing describes it)."""
         opts = self.image_options
         images = extract_images(path, file_type, opts, self.settings_store.excel)
         if not images:
             return []
+        self._describe_images(images, name, known or {})
         self.images.save(doc_id, name, images)
         return [Passage(img.search_text(opts.max_text_chars, name), img.location, img.image_id) for img in images]
 
@@ -425,4 +463,4 @@ def get_document_service() -> DocumentService:
     from .config import get_settings
 
     return DocumentService(factory.get_blob_store(), factory.get_index(), factory.get_embedder(), get_settings(),
-                           factory.get_settings_store(), factory.get_image_store())
+                           factory.get_settings_store(), factory.get_image_store(), factory.get_vision())

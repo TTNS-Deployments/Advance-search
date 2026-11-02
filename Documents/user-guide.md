@@ -141,6 +141,7 @@ procurement, onboarding, product datasheets and a project plan.
 - **Can it answer questions?** Not yet: it finds the right documents and passages. Generated answers are on the
   roadmap.
 - **Which languages?** English.
+- **How can a picture be found if nothing mentions it?** During indexing a vision model describes each image, and the description is searched like any other text. Search for what it shows ("image of a flower", "flower photo", or just "flower"). The description appears in the result, labelled *AI description*; it can be wrong, so check the picture. With the word "image" or "photo" in a search like these, only images are searched. Up to 50 images per document are described.
 - **Why is a scanned PDF not found?** It has no text layer. OCR is on the roadmap.
 - **Can Users see every document?** Yes. There is no per-department access yet (planned with Entra ID).
 

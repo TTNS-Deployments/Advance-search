@@ -4,7 +4,8 @@ the searchable text that describes each image, and the image store.
 Each image that is kept gets a stable id (the first 16 hex characters of the SHA-256 of its bytes), is saved as
 ``<doc_id>/<image_id>.<ext>`` in the images container (``.localdata/storage/extracted-images`` locally) and is
 listed with its metadata in ``<doc_id>/images.json``. Its text, built from the original file name, alt text, the
-figure caption, the text just above and below it and (optionally) OCR, is indexed as one passage of the document,
+figure caption, the description from the vision model (if one is configured), the text just above and below it and
+(optionally) OCR, is indexed as one passage of the document,
 so a query such as "architecture diagram", "figure 3" or an image's file name finds the image.
 
 Skipped: images under ``min_width`` x ``min_height`` pixels (icons, bullets), thin rules and borders (aspect ratio
@@ -112,6 +113,8 @@ class ExtractedImage:
     nearby: str = ""
     ocr_text: str = ""
     occurrences: int = 1
+    ai_description: str = ""           # what a vision model sees in the image (vision.py)
+    ai_model: str = ""
 
     @property
     def image_id(self) -> str:
@@ -129,13 +132,13 @@ class ExtractedImage:
         """The text indexed for this image; empty when nothing describes it (it is then stored but not indexed).
         ``source`` (the document's file name) gives the image the document's subject ("FT-200 field tablet")."""
         name = self.original_name if meaningful_name(self.original_name) else ""
-        described = [t for t in (self.caption, self.alt_text, self.ocr_text, self.nearby) if t]
+        described = [t for t in (self.caption, self.alt_text, self.ai_description, self.ocr_text, self.nearby) if t]
         if not name and not described:
             return ""
         where = f"{self.location} of {source}" if source else self.location
         lines = [f"Image: {name} ({where})" if name else f"Image ({where})"]
         seen = {""}
-        for text in (self.caption, self.alt_text, self.ocr_text):
+        for text in (self.caption, self.alt_text, self.ai_description, self.ocr_text):
             if text.lower() not in seen:
                 lines.append(text)
                 seen.add(text.lower())
@@ -151,6 +154,7 @@ class ExtractedImage:
             "location": self.location, "path": path, "originalName": self.original_name, "width": self.width,
             "height": self.height, "format": self.format, "bytes": len(self.data), "caption": self.caption,
             "altText": self.alt_text, "ocr": bool(self.ocr_text), "occurrences": self.occurrences,
+            "aiDescription": self.ai_description, "aiModel": self.ai_model,
         }
 
 

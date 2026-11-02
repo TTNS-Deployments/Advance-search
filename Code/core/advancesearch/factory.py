@@ -48,6 +48,19 @@ def get_embedder():
 
 
 @lru_cache(maxsize=1)
+def get_vision():
+    """The image describer, or None when no vision model is configured."""
+    s = get_settings()
+    if s.vision_backend == "none":
+        return None
+    if s.vision_backend == "azure":
+        from .vision import AzureOpenAIVision
+
+        return AzureOpenAIVision(s)
+    raise _unknown("vision", s.vision_backend)
+
+
+@lru_cache(maxsize=1)
 def get_image_store():
     from .images import ImageStore
 
@@ -62,7 +75,7 @@ def get_settings_store():
 
 
 def reset() -> None:
-    for fn in (get_blob_store, get_index, get_embedder, get_image_store, get_settings_store):
+    for fn in (get_vision, get_blob_store, get_index, get_embedder, get_image_store, get_settings_store):
         fn.cache_clear()
     from . import settings_store, worker
 

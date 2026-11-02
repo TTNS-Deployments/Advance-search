@@ -124,7 +124,20 @@ Excel from their zip parts with alt text and anchors), converted to PNG when a b
 `extracted-images/<docId>/<imageId>.<ext>` with `<docId>/images.json` (image id, document, page or location,
 path, original name, size, format, caption, alt text). The indexed text is: original name (if meaningful),
 location and document name, caption (`Figure N…` near the image, or the Word *Caption* style), alt text, OCR text
-(optional: `pytesseract` + `tesseract`), and 3 lines/paragraphs/rows above and below. `GET
+(optional: `pytesseract` + `tesseract`), the AI description, and 3 lines/paragraphs/rows above and below.
+
+**AI descriptions.** With `VISION_BACKEND=azure` each kept image (first 50 per document,
+`images.describe_max_per_document`) is shrunk to at most 1024 px and sent to `VISION_DEPLOYMENT` (`gpt-5-mini`):
+`POST {endpoint}/openai/deployments/{VISION_DEPLOYMENT}/chat/completions?api-version={AZURE_OPENAI_VISION_API_VERSION}`
+with `reasoning_effort` and `max_completion_tokens` (no temperature), managed identity, up to 5 attempts on 408, 429
+and 5xx. The answer is saved as `aiDescription` and `aiModel` in `images.json`, indexed with the image and shown as
+*AI description*. A failure does not fail the document: the image is found through its text only and Re-index
+tries again. Re-indexing reuses a description from the same model, so an image is not billed twice.
+
+**Searching for a picture.** "image of a flower", "show me a photo of a flower" or "flower photo" search for the
+subject ("a flower") among image passages only (`imageId ne null and imageId ne ''`). "image", "picture", "photo"
+and similar words never count as keywords, because every image passage says "Image". An image passage containing
+every keyword scores at least 50%, even when the text around it dilutes the ranker's score. `GET
 /documents/<docId>/images/<imageId>` streams an image (roles: Admin, User).
 
 The percentage is a relevance indicator, not a probability. When the semantic ranker fails with an error, the app

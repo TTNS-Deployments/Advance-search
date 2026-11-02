@@ -101,6 +101,27 @@
         "project": "advance-search",
         "purpose": "production"
       }
+    },
+    "enableImageDescriptions": {
+      "value": true
+    },
+    "visionModelName": {
+      "value": "gpt-5-mini"
+    },
+    "visionModelVersion": {
+      "value": "2025-08-07"
+    },
+    "visionDeploymentSku": {
+      "value": "GlobalStandard"
+    },
+    "visionCapacity": {
+      "value": 50
+    },
+    "visionApiVersion": {
+      "value": "2025-04-01-preview"
+    },
+    "visionReasoningEffort": {
+      "value": "low"
     }
   }
 }

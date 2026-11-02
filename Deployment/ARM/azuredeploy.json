@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.48.1.52935",
-      "templateHash": "9302106865967931796"
+      "templateHash": "12790185251811738951"
     },
     "description": "Advance Search: meaning-based search over PDF, Word and Excel documents (web app, Blob Storage, Azure OpenAI embeddings, Azure AI Search, Key Vault, monitoring)."
   },
@@ -160,6 +160,67 @@
       "defaultValue": "2024-10-21",
       "metadata": {
         "description": "Azure OpenAI API version used for embeddings."
+      }
+    },
+    "enableImageDescriptions": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Deploy a vision model that describes each image during ingestion, so pictures can be found by what they show. The deployment costs nothing until it is used (billed per token)."
+      }
+    },
+    "visionModelName": {
+      "type": "string",
+      "defaultValue": "gpt-5-mini",
+      "metadata": {
+        "description": "Vision model in the Azure OpenAI resource."
+      }
+    },
+    "visionModelVersion": {
+      "type": "string",
+      "defaultValue": "2025-08-07",
+      "metadata": {
+        "description": "Vision model version."
+      }
+    },
+    "visionDeploymentSku": {
+      "type": "string",
+      "defaultValue": "GlobalStandard",
+      "allowedValues": [
+        "Standard",
+        "GlobalStandard",
+        "DataZoneStandard"
+      ],
+      "metadata": {
+        "description": "Deployment type of the vision model."
+      }
+    },
+    "visionCapacity": {
+      "type": "int",
+      "defaultValue": 20,
+      "minValue": 1,
+      "metadata": {
+        "description": "Vision deployment capacity in thousands of tokens per minute; quota is shared per subscription and region."
+      }
+    },
+    "visionApiVersion": {
+      "type": "string",
+      "defaultValue": "2025-04-01-preview",
+      "metadata": {
+        "description": "Azure OpenAI API version used for image descriptions."
+      }
+    },
+    "visionReasoningEffort": {
+      "type": "string",
+      "defaultValue": "low",
+      "allowedValues": [
+        "minimal",
+        "low",
+        "medium",
+        "high"
+      ],
+      "metadata": {
+        "description": "Reasoning effort of the vision model (more effort = slower and more tokens)."
       }
     },
     "searchSku": {
@@ -594,6 +655,27 @@
       ]
     },
     {
+      "condition": "[parameters('enableImageDescriptions')]",
+      "type": "Microsoft.CognitiveServices/accounts/deployments",
+      "apiVersion": "2024-10-01",
+      "name": "[format('{0}/{1}', variables('names').openAi, parameters('visionModelName'))]",
+      "sku": {
+        "name": "[parameters('visionDeploymentSku')]",
+        "capacity": "[parameters('visionCapacity')]"
+      },
+      "properties": {
+        "model": {
+          "format": "OpenAI",
+          "name": "[parameters('visionModelName')]",
+          "version": "[parameters('visionModelVersion')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.CognitiveServices/accounts/deployments', variables('names').openAi, parameters('embeddingModelName'))]",
+        "[resourceId('Microsoft.CognitiveServices/accounts', variables('names').openAi)]"
+      ]
+    },
+    {
       "type": "Microsoft.Search/searchServices",
       "apiVersion": "2023-11-01",
       "name": "[variables('names').search]",
@@ -746,6 +828,18 @@
             {
               "name": "EMBEDDING_DIMENSIONS",
               "value": "[string(parameters('embeddingDimensions'))]"
+            },
+            {
+              "name": "VISION_DEPLOYMENT",
+              "value": "[if(parameters('enableImageDescriptions'), parameters('visionModelName'), '')]"
+            },
+            {
+              "name": "AZURE_OPENAI_VISION_API_VERSION",
+              "value": "[parameters('visionApiVersion')]"
+            },
+            {
+              "name": "VISION_REASONING_EFFORT",
+              "value": "[parameters('visionReasoningEffort')]"
             },
             {
               "name": "MAX_UPLOAD_MB",

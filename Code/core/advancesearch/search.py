@@ -62,6 +62,7 @@ class ResultImage:
     height: int
     format: str
     match_percent: int
+    ai_description: str = ""
 
     @property
     def label(self) -> str:
@@ -74,7 +75,7 @@ class ResultImage:
         return {"imageId": self.image_id, "docId": self.doc_id, "location": self.location, "page": self.page,
                 "caption": self.caption, "altText": self.alt_text, "originalName": self.original_name,
                 "label": self.label, "width": self.width, "height": self.height, "format": self.format,
-                "matchPercent": self.match_percent}
+                "matchPercent": self.match_percent, "aiDescription": self.ai_description}
 
 
 @dataclass
@@ -243,7 +244,26 @@ def score_hits(hits: list[Hit], terms: QueryTerms) -> list[Scored]:
 
 # Query words that say nothing about the topic, so finding them in a document is no evidence of a match.
 FILLER = frozenset(stem(w) for w in """document documents file files find show need want information info detail details
-please tell know give look looking search searching anything something thing things""".split())
+please tell know give look looking search searching anything something thing things
+image images picture pictures photo photos photograph photographs pic pics img""".split())
+
+_IMAGE_WORD = r"(?:images?|pictures?|photos?|photographs?|pics?|imgs?)"
+_IMAGE_PREFIX = re.compile(rf"^\s*(?:(?:please\s+)?(?:show|find|get|give)\s+(?:me\s+)?)?(?:(?:an?|the|any)\s+)?{_IMAGE_WORD}\s+"
+                           r"(?:of|showing|with|containing|about)\s+(?P<subject>.+)$", re.IGNORECASE)
+_QUESTION_WORDS = frozenset("how what when where why who which can could do does did is are should will would".split())
+_IMAGE_SUFFIX = re.compile(rf"^\s*(?P<subject>.+?)\s+{_IMAGE_WORD}\s*$", re.IGNORECASE)
+
+
+def image_request(query: str) -> str:
+    """The subject of a search for a picture ("image of a flower", "flower photo" -> the flower words), else ""."""
+    match = _IMAGE_PREFIX.match(query) or _IMAGE_SUFFIX.match(query)
+    if not match or analyse_query(query).specific:
+        return ""
+    subject = match.group("subject").strip()
+    first = subject.split()[0].lower()
+    if match.re is _IMAGE_SUFFIX and (first in _QUESTION_WORDS or len(subject.split()) > 4):
+        return ""  # "how do I resize an image" is a question about images, not a request for one
+    return subject
 
 
 @dataclass(frozen=True)
@@ -343,6 +363,12 @@ def rank_documents(hits: list[Hit], top_n: int, min_match_percent: int, relative
         groups = keyword_groups(query, keywords, related)
         backed = []
         for d in docs:
+            if keywords and not terms.only_named:  # an image whose text has every word asked for is a real match,
+                for s in d.passages:               # even when other text around it dilutes the score
+                    if s.hit.image_id and set(keywords) <= set(words(s.hit.content)):
+                        s.percent = max(s.percent, NAMED_FLOOR)
+                d.passages.sort(key=lambda s: (s.percent, s.hit.score), reverse=True)
+                d.best = d.passages[0]
             d.matched_terms, coverage = keyword_coverage(d, keywords, groups, related)
             strong = any(strong_meaning(s, evidence) for s in d.passages)
             if keywords:
@@ -489,8 +515,12 @@ def search(query: str, *, index=None, embedder=None, settings_store=None, image_
     if not query:
         return response
     started = time.perf_counter()
-    vector = embedder.embed_query(query)
-    hits = index.search(query, vector, top=settings_store.candidates)
+    subject = image_request(query)
+    if subject:  # "image of a flower": look for a flower, among images only (every image passage says "Image")
+        query = subject
+        hits = index.search(query, embedder.embed_query(query), top=settings_store.candidates, images_only=True)
+    else:
+        hits = index.search(query, embedder.embed_query(query), top=settings_store.candidates)
     related = SynonymMap(settings_store.synonyms)
     ranking = rank_documents(hits, top_n, minimum, relative, query, settings_store.evidence, related)
     for rank, doc in enumerate(ranking.documents, start=1):
@@ -533,5 +563,6 @@ def _result_images(doc: RankedDocument, image_store=None) -> list[ResultImage]:
             image_id=record["imageId"], doc_id=doc.best.hit.doc_id, location=record.get("location") or "",
             page=record.get("page"), caption=record.get("caption") or "", alt_text=record.get("altText") or "",
             original_name=record.get("originalName") or "", width=int(record.get("width") or 0),
-            height=int(record.get("height") or 0), format=record.get("format") or "", match_percent=scored.percent))
+            height=int(record.get("height") or 0), format=record.get("format") or "", match_percent=scored.percent,
+            ai_description=record.get("aiDescription") or ""))
     return out

@@ -55,6 +55,7 @@ images:
   max_per_document: 100
   context_lines: 3         # lines of text (paragraphs in Word, rows in Excel) above and below taken as context
   max_text_chars: 2000     # cap on the indexed text per image
+  describe_max_per_document: 50   # images per document sent to the vision model (VISION_DEPLOYMENT), each one billed
   ocr: auto                # auto = read text in images with Tesseract when pytesseract and tesseract are installed
 
 # Related wording. Used by the local mock embeddings (EMBEDDING_BACKEND=mock), so that related wording scores higher than

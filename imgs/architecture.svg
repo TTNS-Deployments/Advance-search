@@ -72,7 +72,7 @@
   <text x="632" y="262" class="title">Azure OpenAI</text>
   <text x="632" y="282" class="sub">Embeddings: text-embedding-3-small (1536)</text>
   <text x="632" y="300" class="sub">Own resource in South India</text>
-  <text x="632" y="318" class="small">no chat model</text>
+  <text x="632" y="318" class="small">gpt-5-mini describes images at ingestion</text>
 
   <!-- Azure AI Search -->
   <rect x="610" y="346" width="345" height="124" rx="14" class="box"/>
