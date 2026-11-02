@@ -14,7 +14,7 @@ from advancesearch.settings_store import SettingsError, validate
 
 def test_defaults_come_from_search_yaml():
     values = factory.get_settings_store().effective()
-    assert values["top_n"] == 3 and values["min_match_percent"] == 30 and values["relative_cutoff_percent"] == 60
+    assert values["top_n"] == 3 and values["min_match_percent"] == 30 and values["relative_cutoff_percent"] == 70
     assert "how many days off do I get" in values["example_queries"]
     assert values["welcome_text"]
 

@@ -256,3 +256,46 @@ def test_related_term_in_several_groups_counts_for_each():
     hits = [hit("budget", reranker=1.5, content="Marketing | 9500000 | 11000000 | Q3 14500000")]
     docs = rank_documents(hits, 3, 0, 0, "marketing third quarter", Evidence(), related).documents
     assert docs and docs[0].coverage == 1.0
+
+
+# ---------------------------------------------------------------------------- strong matches win (scores seen on Azure)
+
+def test_common_words_do_not_ride_along_with_a_strong_match():
+    from advancesearch.search import Evidence
+
+    hits = [hit("leave", reranker=2.23, content="Annual leave: 24 working days off."),
+            hit("wonder", reranker=1.87, content="Project signed off in 30 days."),
+            hit("onboarding", reranker=1.84, content="Check-ins at 30 days. Time off is covered later.")]
+    ranking = rank_documents(hits, 3, 30, 70, "how many days off do I get", Evidence())
+    assert [d.best.hit.doc_id for d in ranking.documents] == ["leave"]
+    assert ranking.hidden_no_evidence == 2
+
+
+def test_keywords_still_count_when_nothing_is_strong():
+    from advancesearch.search import Evidence
+
+    hits = [hit("a", reranker=1.7, content="Spare parts for the pump."), hit("b", reranker=0.4, content="Unrelated.")]
+    assert [d.best.hit.doc_id for d in rank_documents(hits, 3, 30, 70, "pump parts", Evidence()).documents] == ["a"]
+
+
+def test_exact_phrase_survives_next_to_a_strong_match():
+    from advancesearch.search import Evidence
+
+    hits = [hit("a", reranker=2.6, content="Rules for travel spending."),
+            hit("b", reranker=1.9, content="See the travel expense limit table.")]
+    docs = rank_documents(hits, 3, 30, 0, "travel expense limit", Evidence()).documents
+    assert {d.best.hit.doc_id for d in docs} == {"a", "b"}
+
+
+def test_weak_images_are_not_attached_to_a_strong_result():
+    from advancesearch.search import Evidence
+
+    strong = hit("d", 0, reranker=2.5, content="Who approves a purchase.")
+    weak = hit("d", 1, reranker=1.4, content="Image (Page 4) slide about purchase approvals.")
+    weak.image_id = "abc"
+    [doc] = rank_documents([strong, weak], 3, 20, 0, "who approves a purchase", Evidence()).documents
+    assert doc.images == []
+    good = hit("d", 2, reranker=2.2, content="Image (Page 5) approval flow for a purchase.")
+    good.image_id = "def"
+    [doc] = rank_documents([strong, weak, good], 3, 20, 0, "who approves a purchase", Evidence()).documents
+    assert [s.hit.image_id for s in doc.images] == ["def"]

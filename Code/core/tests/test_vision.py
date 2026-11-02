@@ -61,7 +61,7 @@ def ingest(service, path):
     return service.process(result.name)
 
 
-@pytest.mark.parametrize("query", ["image of a flower", "flower", "picture of flowers", "flower photo", "show me a photo of a flower"])
+@pytest.mark.parametrize("query", ["image of a flower", "picture of flowers", "flower photo", "show me a photo of a flower"])
 def test_picture_is_found_by_what_it_shows(service, tmp_path, query):
     service.vision = FakeVision()
     assert ingest(service, flower_docx(tmp_path)) == "indexed"
@@ -109,12 +109,12 @@ def test_failed_description_keeps_the_document_and_reindex_tries_again(service, 
     service.vision = FakeVision(VisionError("HTTP 429"))
     assert ingest(service, flower_docx(tmp_path)) == "indexed"
     assert service.get("Office-Update.docx").images == 1
-    assert search("flower").results == []
+    assert search("image of a flower").results == []
     service.vision = FakeVision()
     service.reindex("Office-Update.docx")
     assert service.process("Office-Update.docx") == "indexed"
     assert service.vision.count == 1
-    assert search("flower").results[0].file_name == "Office-Update.docx"
+    assert search("image of a flower").results[0].file_name == "Office-Update.docx"
 
 
 def test_reindexing_does_not_pay_for_the_same_image_twice(service, tmp_path):
@@ -124,11 +124,11 @@ def test_reindexing_does_not_pay_for_the_same_image_twice(service, tmp_path):
     service.reindex("Office-Update.docx")
     service.process("Office-Update.docx")
     assert vision.count == 1  # reused
-    assert search("flower").results  # and still indexed
+    assert search("image of a flower").results  # and still indexed
     names = service.rebuild_index()
     for name in names:
         service.process(name)
-    assert vision.count == 1 and search("flower").results
+    assert vision.count == 1 and search("image of a flower").results
     vision.model = "another-model"
     service.reindex("Office-Update.docx")
     service.process("Office-Update.docx")

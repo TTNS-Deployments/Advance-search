@@ -22,6 +22,10 @@ Match score (also in Documents/user-guide.md and Documents/technical-specificati
   similarity of at least ``strong_cosine``) **or** it contains at least ``min_keyword_coverage`` (60%) of the
   query's keywords. Vector search always returns the nearest passages, even when none is related, and the ranker
   gives such passages about 1-2 ("somewhat relevant", 25-50%); without this rule they would be shown.
+* Strong matches win: as soon as one document is genuinely relevant in meaning (or has the exact phrase), documents
+  that only share words with the query are dropped. Measured on Azure, right answers score above 2.0 and documents
+  that merely contain common words such as "days" or "purchase" score 1.8-1.9, so keywords alone are only trusted
+  when nothing better exists. Images are shown only if they are strong matches themselves.
 * Precision: documents below ``min_match_percent`` are dropped, then documents below ``relative_cutoff_percent``
   of the best document's match %, then at most ``top_n`` are shown. Nothing is padded: no match means no result.
   The percentage is a relevance indicator, not a probability.
@@ -126,7 +130,7 @@ class SearchResponse:
     hidden_no_evidence: int = 0
     top_n: int = 3
     min_match_percent: int = 30
-    relative_cutoff_percent: int = 60
+    relative_cutoff_percent: int = 70
 
     @property
     def hidden(self) -> int:
@@ -295,6 +299,7 @@ class RankedDocument:
     matched_terms: list[str] = field(default_factory=list)
     coverage: float | None = None         # share of the query's keywords the document contains
     score: int | None = None              # match % with keyword coverage blended in
+    strong: bool = False                  # a passage is genuinely relevant in meaning
 
     @property
     def percent(self) -> int:
@@ -344,7 +349,7 @@ def keyword_coverage(doc: RankedDocument, keywords: dict[str, str], groups: dict
 
 def rank_documents(hits: list[Hit], top_n: int, min_match_percent: int, relative_cutoff_percent: int = 0,
                    query: str = "", evidence: Evidence | None = None,
-                   related: SynonymMap | None = None) -> Ranking:
+                   related: SynonymMap | None = None, image_search: bool = False) -> Ranking:
     """One entry per document (its best passage), best first, keeping only the documents that really match."""
     terms = analyse_query(query)
     by_doc: dict[str, list[Scored]] = {}
@@ -357,20 +362,21 @@ def rank_documents(hits: list[Hit], top_n: int, min_match_percent: int, relative
     docs.sort(key=lambda d: (d.percent, d.best.hit.score), reverse=True)
     ranking = Ranking([], considered=len(docs))
 
+    any_strong = False
     if evidence is not None and query:  # no shared keyword and no strong meaning match: not a match at all
         typed = {stem(w): w for w in reversed(TOKEN_RE.findall(query.lower()))}
         keywords = {kw: typed.get(kw, kw) for kw in query_keywords(query)}
         groups = keyword_groups(query, keywords, related)
         backed = []
         for d in docs:
-            if keywords and not terms.only_named:  # an image whose text has every word asked for is a real match,
-                for s in d.passages:               # even when other text around it dilutes the score
+            if image_search and keywords:  # a picture was asked for and its text has every word asked for: a real
+                for s in d.passages:       # match, even when other text around it dilutes the score
                     if s.hit.image_id and set(keywords) <= set(words(s.hit.content)):
                         s.percent = max(s.percent, NAMED_FLOOR)
                 d.passages.sort(key=lambda s: (s.percent, s.hit.score), reverse=True)
                 d.best = d.passages[0]
             d.matched_terms, coverage = keyword_coverage(d, keywords, groups, related)
-            strong = any(strong_meaning(s, evidence) for s in d.passages)
+            d.strong = strong = any(strong_meaning(s, evidence) for s in d.passages)
             if keywords:
                 d.coverage = coverage
                 if not terms.only_named:  # every keyword present: full score; each missing one lowers it
@@ -378,6 +384,9 @@ def rank_documents(hits: list[Hit], top_n: int, min_match_percent: int, relative
                     d.score = min(100, round(d.best.percent * (1 - w + w * coverage)))
             if strong or (keywords and coverage >= evidence.min_coverage):
                 backed.append(d)
+        any_strong = any(d.strong for d in backed)
+        if any_strong:  # keywords alone are only trusted when nothing better exists
+            backed = [d for d in backed if d.strong or d.best.exact]
         ranking.hidden_no_evidence = len(docs) - len(backed)
         docs = sorted(backed, key=lambda d: (d.percent, d.best.hit.score), reverse=True)
     if terms.specific:  # the query names something: only documents that contain all of it
@@ -398,7 +407,8 @@ def rank_documents(hits: list[Hit], top_n: int, min_match_percent: int, relative
     wanted_all = frozenset(range(len(terms.specific)))
     for doc in ranking.documents:
         doc.images = [s for s in doc.passages if s.hit.image_id and s.percent >= floor
-                      and (not terms.specific or s.specific == wanted_all)][:IMAGES_PER_RESULT]
+                      and (not terms.specific or s.specific == wanted_all)
+                      and (image_search or not any_strong or strong_meaning(s, evidence))][:IMAGES_PER_RESULT]
     return ranking
 
 
@@ -522,7 +532,7 @@ def search(query: str, *, index=None, embedder=None, settings_store=None, image_
     else:
         hits = index.search(query, embedder.embed_query(query), top=settings_store.candidates)
     related = SynonymMap(settings_store.synonyms)
-    ranking = rank_documents(hits, top_n, minimum, relative, query, settings_store.evidence, related)
+    ranking = rank_documents(hits, top_n, minimum, relative, query, settings_store.evidence, related, bool(subject))
     for rank, doc in enumerate(ranking.documents, start=1):
         hit = doc.best.hit
         response.results.append(ResultDocument(

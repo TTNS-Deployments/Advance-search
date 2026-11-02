@@ -39,7 +39,7 @@ All settings come from environment variables. A value that is an unresolved Key 
 | `EMBEDDING_DIMENSIONS` | `1536` | `embeddingDimensions` | Vector size of the index and the model; a change needs **Rebuild index** |
 | `MAX_UPLOAD_MB` | `20` | `maxUploadMb` | Largest upload |
 | `SEARCH_MIN_MATCH_PERCENT` | – (`search.yaml`: 30) | – | Overrides `results.min_match_percent` (0–100). The Settings page overrides this |
-| `SEARCH_RELATIVE_CUTOFF_PERCENT` | – (`search.yaml`: 60) | – | Overrides `results.relative_cutoff_percent` (0–100, 0 = off). The Settings page overrides this |
+| `SEARCH_RELATIVE_CUTOFF_PERCENT` | – (`search.yaml`: 70) | – | Overrides `results.relative_cutoff_percent` (0–100, 0 = off). The Settings page overrides this |
 | `IMAGE_EXTRACTION` | `on` | – | `off` stops extracting images from new and re-indexed documents |
 | `VISION_BACKEND` | `azure` when `VISION_DEPLOYMENT` is set in Azure mode, otherwise `none` | – | `azure`: a vision model describes each image during ingestion. `none`: images are found through their text only |
 | `VISION_DEPLOYMENT` | – | `visionModelName` (empty when `enableImageDescriptions` is false) | Vision model deployment in the Azure OpenAI resource |
@@ -80,7 +80,7 @@ All settings come from environment variables. A value that is an unresolved Key 
 |---|---|---|---|
 | `results.top_n` | 3 | Yes (1–10) | Most documents shown per search (fewer when fewer really match) |
 | `results.min_match_percent` | 30 | Yes (0–100) | Documents below this match % are hidden (env `SEARCH_MIN_MATCH_PERCENT`) |
-| `results.relative_cutoff_percent` | 60 | Yes (0–100) | Documents below this % of the best document's match % are hidden; 0 = off (env `SEARCH_RELATIVE_CUTOFF_PERCENT`) |
+| `results.relative_cutoff_percent` | 70 | Yes (0–100) | Documents below this % of the best document's match % are hidden; 0 = off (env `SEARCH_RELATIVE_CUTOFF_PERCENT`) |
 | `results.keyword_weight` | 0.3 | No | How much of the match % depends on how many query keywords a document contains: score × (1 − weight + weight × coverage) |
 | `results.min_keyword_coverage` | 0.6 | No | Share of the query's keywords a document must contain when its meaning match is not strong |
 | `results.strong_reranker_score` | 2.0 | No | A document with fewer keywords than that is shown only if a passage scores at least this with the semantic ranker (0–4) |

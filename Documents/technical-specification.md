@@ -112,7 +112,7 @@ similarity over all stored vectors, reciprocal rank fusion (k = 60), and a stand
    documents would appear. The API reports the keywords found (`matchedTerms`), the coverage
    (`keywordCoverage`) and the number of documents hidden by this rule (`hiddenNoEvidence`).
 7. Precision filters, in order: documents below `min_match_percent` (default 30) are hidden; documents below
-   `relative_cutoff_percent` (default 60) of the best document's match % are hidden; at most `top_n` (default 3)
+   `relative_cutoff_percent` (default 70) of the best document's match % are hidden; at most `top_n` (default 3)
    are shown, sorted by match %. Nothing is padded: no match returns no result and the API adds
    `"message": "No matching documents found."`.
 8. Images: each extracted image is indexed as one passage of its document (`imageId` set). A result lists up to
@@ -137,13 +137,18 @@ twice; changing `PROMPT_VERSION` in `vision.py` describes images again. The prom
 20 to 50 words: the kind of image, the main subjects, how many, colours and setting, with both the specific and the
 general word ("a red rose, a flower"). Answers are cut to 600 characters at a sentence or word boundary.
 
+**Strong matches win.** Once any document has a passage that is genuinely relevant in meaning (ranker ≥ 2.0, or cosine
+≥ 0.45 without the ranker), documents that only share words with the query are dropped, unless they contain the
+exact phrase. Images are shown only if their own passage is strong, except in a search that asks for a picture.
+
 **Several matching images.** A result lists up to 4 matching images of its document. Images in different documents
 give separate results, up to `top_n`, subject to the same minimum and relative cutoff.
 
 **Searching for a picture.** "image of a flower", "show me a photo of a flower" or "flower photo" search for the
 subject ("a flower") among image passages only (`imageId ne null and imageId ne ''`). "image", "picture", "photo"
 and similar words never count as keywords, because every image passage says "Image". An image passage containing
-every keyword scores at least 50%, even when the text around it dilutes the ranker's score. `GET
+every keyword scores at least 50% in a search that asks for a picture, even when the text around it dilutes the
+ranker's score. `GET
 /documents/<docId>/images/<imageId>` streams an image (roles: Admin, User).
 
 The percentage is a relevance indicator, not a probability. When the semantic ranker fails with an error, the app

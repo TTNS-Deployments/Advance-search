@@ -26,7 +26,7 @@ EDITABLE = ("top_n", "min_match_percent", "relative_cutoff_percent", "example_qu
 CACHE_SECONDS = 30
 
 FALLBACK_DEFAULTS = {
-    "results": {"top_n": 3, "min_match_percent": 30, "relative_cutoff_percent": 60, "candidates": 50,
+    "results": {"top_n": 3, "min_match_percent": 30, "relative_cutoff_percent": 70, "candidates": 50,
                 "strong_reranker_score": 2.0, "strong_cosine": 0.45,
                 "keyword_weight": 0.3, "min_keyword_coverage": 0.6},
     "welcome_text": "",
@@ -134,7 +134,7 @@ class SettingsStore:
         values = {
             "top_n": int(d["results"]["top_n"]),
             "min_match_percent": int(d["results"]["min_match_percent"]) if env_min is None else env_min,
-            "relative_cutoff_percent": (int(d["results"].get("relative_cutoff_percent", 60)) if env_relative is None
+            "relative_cutoff_percent": (int(d["results"].get("relative_cutoff_percent", 70)) if env_relative is None
                                         else env_relative),
             "example_queries": list(d.get("example_queries") or []),
             "welcome_text": d.get("welcome_text") or "",
